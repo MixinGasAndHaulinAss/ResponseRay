@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -68,8 +69,12 @@ func (ing *Ingester) IngestJSONL(ctx context.Context, filePath string, uploadID,
 			continue
 		}
 
+		lineCopy := make([]byte, len(line))
+		copy(lineCopy, line)
+		lineCopy = sanitizeJSON(lineCopy)
+
 		var raw rawEvent
-		if err := json.Unmarshal(line, &raw); err != nil {
+		if err := json.Unmarshal(lineCopy, &raw); err != nil {
 			log.Printf("skip malformed line: %v", err)
 			continue
 		}
@@ -89,7 +94,7 @@ func (ing *Ingester) IngestJSONL(ctx context.Context, filePath string, uploadID,
 			DateTime:     dt,
 			EventType:    raw.EventType,
 			IsSuspicious: parseBool(raw.IsSuspicious),
-			Data:         json.RawMessage(line),
+			Data:         json.RawMessage(lineCopy),
 		}
 
 		if raw.DataType != "" {
@@ -179,6 +184,19 @@ func parseDateTime(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("unable to parse datetime: %s", s)
+}
+
+func sanitizeJSON(data []byte) []byte {
+	data = bytes.ReplaceAll(data, []byte(`\u0000`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0001`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0002`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0003`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0004`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0005`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0006`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0007`), []byte{})
+	data = bytes.ReplaceAll(data, []byte(`\u0008`), []byte{})
+	return data
 }
 
 func parseBool(v interface{}) bool {

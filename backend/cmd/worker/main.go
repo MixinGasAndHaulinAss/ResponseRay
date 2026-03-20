@@ -69,16 +69,20 @@ func processNext(ctx context.Context, pool *pgxpool.Pool, ing *ingest.Ingester) 
 
 	outputPath := filepath.Join(outputDir, "timeline.jsonl")
 
-	cmd := exec.CommandContext(ctx, ctBinary, inputPath,
-		"--output", outputPath,
-		"--artifacts-dir", artifactDir,
-		"--cloudrules")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		cmd := exec.CommandContext(ctx, ctBinary, inputPath,
+			"--output", outputPath,
+			"--artifacts-dir", artifactDir,
+			"--cloudrules")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		setError(ctx, pool, uploadID, fmt.Sprintf("ct-to-timesketch failed: %v", err))
-		return fmt.Errorf("ct-to-timesketch: %w", err)
+		if err := cmd.Run(); err != nil {
+			setError(ctx, pool, uploadID, fmt.Sprintf("ct-to-timesketch failed: %v", err))
+			return fmt.Errorf("ct-to-timesketch: %w", err)
+		}
+	} else {
+		log.Printf("JSONL already exists at %s, skipping ct-to-timesketch", outputPath)
 	}
 
 	log.Printf("ct-to-timesketch complete, ingesting JSONL...")
