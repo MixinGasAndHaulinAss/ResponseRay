@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-responseray}
+      POSTGRES_USER: ${POSTGRES_USER:-responseray}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-responseray}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-responseray}
+      POSTGRES_USER: ${POSTGRES_USER:-responseray}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      API_PORT: "8080"
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-changeme_in_production}
+      CT_BINARY_PATH: /usr/local/bin/ct-to-timesketch
+      UPLOAD_DIR: /data/uploads
+      ARTIFACTS_DIR: /data/artifacts
+      REPORTS_DIR: /data/reports
+    volumes:
+      - appdata:/data
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - frontend_build:/usr/share/nginx/html:ro
+
+  frontend-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    volumes:
+      - frontend_build:/output
+
+volumes:
+  pgdata:
+  appdata:
+  frontend_build:

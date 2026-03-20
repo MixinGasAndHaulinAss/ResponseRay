@@ -1,0 +1,24 @@
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache gcc musl-dev
+
+WORKDIR /build
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+COPY backend/ .
+RUN CGO_ENABLED=0 go build -o /responseray-api ./cmd/api/
+RUN CGO_ENABLED=0 go build -o /responseray-worker ./cmd/worker/
+
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY --from=builder /responseray-api /usr/local/bin/
+COPY --from=builder /responseray-worker /usr/local/bin/
+
+RUN mkdir -p /data/uploads /data/artifacts /data/reports
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "responseray-worker & responseray-api"]
