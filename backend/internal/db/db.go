@@ -43,7 +43,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	var version int
 	err := pool.QueryRow(ctx, "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").Scan(&version)
 	if err != nil {
-		if !strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), "does not exist") {
 			log.Printf("No schema_version table, applying initial migration")
 			version = 0
 		} else {
