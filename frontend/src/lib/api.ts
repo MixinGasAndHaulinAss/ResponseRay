@@ -89,6 +89,10 @@ export const api = {
   deleteUpload: (siteId: string, uploadId: string) =>
     request<void>(`/sites/${siteId}/uploads/${uploadId}`, { method: 'DELETE' }),
 
+  // Filesystem
+  listDirectory: (siteId: string, path: string) =>
+    request<FilesystemResponse>(`/sites/${siteId}/filesystem?path=${encodeURIComponent(path)}`),
+
   // Events
   queryEvents: (siteId: string, params: Record<string, string>) => {
     const qs = new URLSearchParams(params).toString()
@@ -150,6 +154,25 @@ export interface PagedResult<T> {
   offset: number
   limit: number
   has_more: boolean
+}
+
+export interface FilesystemEntry {
+  name: string
+  is_dir: boolean
+  size?: number
+  file_count?: number
+  latest_time?: string
+  md5?: string
+  sha256?: string
+  is_deleted?: boolean
+  has_timestomp?: boolean
+  significance?: string
+  is_suspicious?: boolean
+}
+
+export interface FilesystemResponse {
+  path: string
+  entries: FilesystemEntry[]
 }
 
 export interface DashboardStats {

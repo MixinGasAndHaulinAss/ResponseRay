@@ -39,6 +39,7 @@ func main() {
 	uploadH := &handlers.UploadHandler{DB: pool, UploadDir: uploadDir}
 	eventH := &handlers.EventHandler{DB: pool}
 	dashH := &handlers.DashboardHandler{DB: pool}
+	fsH := &handlers.FilesystemHandler{DB: pool}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -72,6 +73,7 @@ func main() {
 			r.Get("/uploads/{uploadID}", uploadH.Status)
 			r.Delete("/uploads/{uploadID}", uploadH.Delete)
 
+			r.Get("/filesystem", fsH.ListDir)
 			r.Get("/events", eventH.Query)
 			r.Patch("/events/{eventID}/finding", eventH.UpdateFinding)
 			r.Post("/events/findings", eventH.BulkUpdateFinding)

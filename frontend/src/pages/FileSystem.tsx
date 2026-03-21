@@ -1,75 +1,66 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
-import { Folder, File, ChevronRight, AlertTriangle, Flag, Search } from 'lucide-react'
-import { useEvents } from '../hooks/useEvents'
-import { api, type Event } from '../lib/api'
-import { formatDateTime, formatNumber } from '../lib/utils'
-import DataTable from '../components/tables/DataTable'
-import FindingBadge from '../components/findings/FindingBadge'
-import FindingDialog from '../components/findings/FindingDialog'
-import EventDetailPanel from '../components/EventDetailPanel'
-
-const columns = [
-  {
-    id: 'indicators', header: '', size: 60,
-    cell: ({ row }: any) => <FindingBadge finding={row.original.finding} isSuspicious={row.original.is_suspicious} ctSignificance={row.original.ct_significance} small />,
-  },
-  { id: 'datetime', header: 'Timestamp', cell: ({ row }: any) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span> },
-  { id: 'name', header: 'Name', cell: ({ row }: any) => {
-    const d = row.original.data
-    const isDir = d.meta_type === 'Dir'
-    return (
-      <div className="flex items-center gap-1.5">
-        {isDir ? <Folder className="w-3.5 h-3.5 text-brand-400" /> : <File className="w-3.5 h-3.5 text-gray-500" />}
-        <span>{d.file_name || '-'}</span>
-      </div>
-    )
-  }},
-  { id: 'path', header: 'Path', cell: ({ row }: any) => <span className="max-w-md truncate block">{row.original.data.file_path || '-'}</span> },
-  { id: 'size', header: 'Size', cell: ({ row }: any) => {
-    const s = row.original.data.file_size
-    if (!s || row.original.data.meta_type === 'Dir') return '-'
-    return s > 1048576 ? `${(s / 1048576).toFixed(1)} MB` : `${Math.round(s / 1024)} KB`
-  }},
-  { id: 'type', header: 'MIME', cell: ({ row }: any) => row.original.data.file_mime_type || '-' },
-  { id: 'ts_desc', header: 'Timestamp Type', cell: ({ row }: any) => row.original.timestamp_desc || '-' },
-  { id: 'hashes', header: 'Hashes', cell: ({ row }: any) => {
-    const d = row.original.data
-    if (d.md5) return <span className="font-mono text-xs" title={`MD5: ${d.md5}\nSHA256: ${d.sha256 || 'n/a'}`}>{d.md5?.substring(0, 12)}...</span>
-    return '-'
-  }},
-  { id: 'deleted', header: 'Deleted', cell: ({ row }: any) => row.original.data.is_deleted ? <span className="text-red-400">Yes</span> : '-' },
-  { id: 'timestomp', header: 'Timestomp', cell: ({ row }: any) => row.original.data.timestompNote ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> : null },
-  { id: 'actions', header: '', size: 40, cell: () => null },
-]
+import { useQuery } from '@tanstack/react-query'
+import {
+  Folder, File, ChevronRight, Home, AlertTriangle, Search,
+  ArrowUp, Shield, Hash
+} from 'lucide-react'
+import { api, type FilesystemEntry } from '../lib/api'
+import { formatDateTimeShort } from '../lib/utils'
 
 export default function FileSystem() {
   const { siteId } = useParams<{ siteId: string }>()
-  const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [currentPath, setCurrentPath] = useState('/')
   const [searchInput, setSearchInput] = useState('')
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-  const [findingEvent, setFindingEvent] = useState<Event | null>(null)
+  const [searchFilter, setSearchFilter] = useState('')
 
-  const { events, total, offset, setOffset, limit, isLoading } = useEvents({
-    siteId: siteId!,
-    eventTypes: ['file_timeline', 'file_timeline_fn'],
-    search,
-    limit: 100,
+  const { data, isLoading } = useQuery({
+    queryKey: ['filesystem', siteId, currentPath],
+    queryFn: () => api.listDirectory(siteId!, currentPath),
+    enabled: !!siteId,
   })
+
+  const pathSegments = currentPath.split('/').filter(Boolean)
+
+  const navigateTo = (path: string) => {
+    setCurrentPath(path)
+    setSearchFilter('')
+    setSearchInput('')
+  }
+
+  const navigateUp = () => {
+    if (currentPath === '/') return
+    const parts = currentPath.split('/').filter(Boolean)
+    parts.pop()
+    navigateTo('/' + (parts.length ? parts.join('/') + '/' : ''))
+  }
+
+  const openFolder = (name: string) => {
+    navigateTo(currentPath + name + '/')
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setSearch(searchInput)
-    setOffset(0)
+    setSearchFilter(searchInput.toLowerCase())
   }
 
-  const handleSaveFinding = async (finding: string | null, note: string | null) => {
-    if (!siteId || !findingEvent) return
-    await api.updateFinding(siteId, findingEvent.id, { finding, finding_note: note })
-    queryClient.invalidateQueries({ queryKey: ['events'] })
-    setFindingEvent(null)
+  const entries = data?.entries || []
+  const dirs = entries.filter(e => e.is_dir)
+  const files = entries.filter(e => !e.is_dir)
+
+  const filteredDirs = searchFilter
+    ? dirs.filter(d => d.name.toLowerCase().includes(searchFilter))
+    : dirs
+  const filteredFiles = searchFilter
+    ? files.filter(f => f.name.toLowerCase().includes(searchFilter))
+    : files
+
+  const formatSize = (size?: number) => {
+    if (!size) return '-'
+    if (size > 1073741824) return `${(size / 1073741824).toFixed(1)} GB`
+    if (size > 1048576) return `${(size / 1048576).toFixed(1)} MB`
+    if (size > 1024) return `${(size / 1024).toFixed(1)} KB`
+    return `${size} B`
   }
 
   return (
@@ -82,40 +73,178 @@ export default function FileSystem() {
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search files, hashes..."
+              placeholder="Filter current directory..."
               className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-72 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </form>
       </div>
 
-      <DataTable
-        data={events}
-        columns={columns}
-        total={total}
-        offset={offset}
-        limit={limit}
-        onPageChange={setOffset}
-        onRowClick={setSelectedEvent}
-        isLoading={isLoading}
-      />
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2.5 overflow-x-auto">
+        <button
+          onClick={() => navigateTo('/')}
+          className="flex items-center gap-1 text-sm text-brand-400 hover:text-brand-300 shrink-0"
+        >
+          <Home className="w-4 h-4" />
+          <span>Root</span>
+        </button>
+        {pathSegments.map((segment, i) => (
+          <span key={i} className="flex items-center gap-1 shrink-0">
+            <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+            <button
+              onClick={() => navigateTo('/' + pathSegments.slice(0, i + 1).join('/') + '/')}
+              className={`text-sm ${i === pathSegments.length - 1 ? 'text-white font-medium' : 'text-brand-400 hover:text-brand-300'}`}
+            >
+              {segment}
+            </button>
+          </span>
+        ))}
+      </div>
 
-      {selectedEvent && (
-        <EventDetailPanel
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-          onMarkFinding={() => setFindingEvent(selectedEvent)}
-        />
+      {isLoading ? (
+        <div className="text-center text-gray-500 py-12">Loading directory...</div>
+      ) : (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_100px_160px_80px] gap-2 px-4 py-2 bg-gray-800/50 border-b border-gray-800 text-xs font-medium text-gray-500 uppercase">
+            <span>Name</span>
+            <span className="text-right">Size</span>
+            <span className="text-right">Modified</span>
+            <span className="text-center">Flags</span>
+          </div>
+
+          {/* Up directory */}
+          {currentPath !== '/' && (
+            <button
+              onClick={navigateUp}
+              className="w-full grid grid-cols-[1fr_100px_160px_80px] gap-2 px-4 py-2 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50 text-left"
+            >
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <ArrowUp className="w-4 h-4" />
+                <span>..</span>
+              </div>
+              <span />
+              <span />
+              <span />
+            </button>
+          )}
+
+          {/* Directories */}
+          {filteredDirs.map((entry) => (
+            <button
+              key={'d-' + entry.name}
+              onClick={() => openFolder(entry.name)}
+              className="w-full grid grid-cols-[1fr_100px_160px_80px] gap-2 px-4 py-2 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50 text-left group"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Folder className="w-4 h-4 text-brand-400 shrink-0" />
+                <span className="text-sm text-gray-200 group-hover:text-brand-300 truncate">{entry.name}</span>
+              </div>
+              <span className="text-xs text-gray-500 text-right self-center">
+                {entry.file_count ? `${entry.file_count} items` : ''}
+              </span>
+              <span />
+              <span />
+            </button>
+          ))}
+
+          {/* Files */}
+          {filteredFiles.map((entry) => (
+            <FileRow key={'f-' + entry.name} entry={entry} formatSize={formatSize} />
+          ))}
+
+          {filteredDirs.length === 0 && filteredFiles.length === 0 && (
+            <div className="px-4 py-8 text-center text-gray-500 text-sm">
+              {searchFilter ? 'No matches found' : 'Empty directory'}
+            </div>
+          )}
+        </div>
       )}
 
-      {findingEvent && (
-        <FindingDialog
-          currentFinding={findingEvent.finding}
-          currentNote={findingEvent.finding_note}
-          onSave={handleSaveFinding}
-          onClose={() => setFindingEvent(null)}
-        />
-      )}
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 text-xs text-gray-500">
+        <span>{dirs.length} folder{dirs.length !== 1 ? 's' : ''}</span>
+        <span>{files.length} file{files.length !== 1 ? 's' : ''}</span>
+        {searchFilter && (
+          <span className="text-brand-400">
+            Showing {filteredDirs.length + filteredFiles.length} of {dirs.length + files.length}
+          </span>
+        )}
+      </div>
     </div>
+  )
+}
+
+function FileRow({ entry, formatSize }: { entry: FilesystemEntry; formatSize: (s?: number) => string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full grid grid-cols-[1fr_100px_160px_80px] gap-2 px-4 py-2 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50 text-left"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <File className="w-4 h-4 text-gray-500 shrink-0" />
+          <span className={`text-sm truncate ${entry.is_deleted ? 'text-red-400 line-through' : 'text-gray-300'}`}>
+            {entry.name}
+          </span>
+        </div>
+        <span className="text-xs text-gray-500 text-right font-mono self-center">
+          {formatSize(entry.size)}
+        </span>
+        <span className="text-xs text-gray-500 text-right self-center">
+          {entry.latest_time ? formatDateTimeShort(entry.latest_time) : '-'}
+        </span>
+        <div className="flex items-center justify-center gap-1">
+          {entry.has_timestomp && (
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" title="Possible timestomping" />
+          )}
+          {entry.is_suspicious && (
+            <Shield className="w-3.5 h-3.5 text-amber-400" title="Suspicious" />
+          )}
+          {entry.significance && (
+            <AlertTriangle className="w-3.5 h-3.5 text-purple-400" title={entry.significance} />
+          )}
+          {entry.md5 && (
+            <Hash className="w-3.5 h-3.5 text-gray-600" title="Has hash" />
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 py-3 bg-gray-800/30 border-b border-gray-800/50 text-xs space-y-1">
+          {entry.md5 && (
+            <div className="flex gap-2">
+              <span className="text-gray-500 w-14">MD5</span>
+              <span className="text-gray-300 font-mono">{entry.md5}</span>
+            </div>
+          )}
+          {entry.sha256 && (
+            <div className="flex gap-2">
+              <span className="text-gray-500 w-14">SHA256</span>
+              <span className="text-gray-300 font-mono break-all">{entry.sha256}</span>
+            </div>
+          )}
+          {entry.is_deleted && (
+            <div className="flex gap-2">
+              <span className="text-red-400">Deleted file</span>
+            </div>
+          )}
+          {entry.has_timestomp && (
+            <div className="flex gap-2">
+              <span className="text-amber-400">Possible timestomping detected</span>
+            </div>
+          )}
+          {entry.significance && (
+            <div className="flex gap-2">
+              <span className="text-gray-500 w-14">CT</span>
+              <span className="text-purple-400">{entry.significance}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   )
 }
