@@ -14,6 +14,8 @@ interface UseEventsOptions {
   sortField?: string
   sortDir?: string
   dataFilters?: Record<string, string>
+  dateFrom?: string
+  dateTo?: string
   enabled?: boolean
 }
 
@@ -33,6 +35,8 @@ export function useEvents(options: UseEventsOptions) {
   if (options.suspicious) params.suspicious = 'true'
   if (options.sortField) params.sort = options.sortField
   if (options.sortDir) params.dir = options.sortDir
+  if (options.dateFrom) params.date_from = options.dateFrom
+  if (options.dateTo) params.date_to = options.dateTo
 
   if (options.dataFilters) {
     for (const [k, v] of Object.entries(options.dataFilters)) {

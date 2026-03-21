@@ -32,6 +32,8 @@ func (h *EventHandler) Query(w http.ResponseWriter, r *http.Request) {
 		Search:    r.URL.Query().Get("search"),
 		Finding:   r.URL.Query().Get("finding"),
 		Channel:   r.URL.Query().Get("channel"),
+		DateFrom:  r.URL.Query().Get("date_from"),
+		DateTo:    r.URL.Query().Get("date_to"),
 	}
 
 	if q.Limit > 1000 {
@@ -114,6 +116,17 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 	}
 	if q.OnlySuspicious {
 		conditions = append(conditions, "is_suspicious = TRUE")
+	}
+
+	if q.DateFrom != "" {
+		conditions = append(conditions, fmt.Sprintf("datetime >= $%d", argIdx))
+		args = append(args, q.DateFrom)
+		argIdx++
+	}
+	if q.DateTo != "" {
+		conditions = append(conditions, fmt.Sprintf("datetime <= $%d", argIdx))
+		args = append(args, q.DateTo)
+		argIdx++
 	}
 
 	if q.Channel != "" {

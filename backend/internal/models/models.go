@@ -64,6 +64,9 @@ type EventQuery struct {
 	DataFilters map[string]string `json:"data_filters,omitempty"`
 	Channel     string            `json:"channel,omitempty"`
 
+	DateFrom string `json:"date_from,omitempty"`
+	DateTo   string `json:"date_to,omitempty"`
+
 	OnlyNotable    bool `json:"only_notable,omitempty"`
 	OnlySuspicious bool `json:"only_suspicious,omitempty"`
 }
