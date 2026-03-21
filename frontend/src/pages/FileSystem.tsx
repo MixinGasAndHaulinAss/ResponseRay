@@ -199,16 +199,16 @@ function FileRow({ entry, formatSize }: { entry: FilesystemEntry; formatSize: (s
         </span>
         <div className="flex items-center justify-center gap-1">
           {entry.has_timestomp && (
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" title="Possible timestomping" />
+            <span title="Possible timestomping"><AlertTriangle className="w-3.5 h-3.5 text-amber-400" /></span>
           )}
           {entry.is_suspicious && (
-            <Shield className="w-3.5 h-3.5 text-amber-400" title="Suspicious" />
+            <span title="Suspicious"><Shield className="w-3.5 h-3.5 text-amber-400" /></span>
           )}
           {entry.significance && (
-            <AlertTriangle className="w-3.5 h-3.5 text-purple-400" title={entry.significance} />
+            <span title={entry.significance}><AlertTriangle className="w-3.5 h-3.5 text-purple-400" /></span>
           )}
           {entry.md5 && (
-            <Hash className="w-3.5 h-3.5 text-gray-600" title="Has hash" />
+            <span title="Has hash"><Hash className="w-3.5 h-3.5 text-gray-600" /></span>
           )}
         </div>
       </button>
