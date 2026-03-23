@@ -102,9 +102,12 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 	}
 
 	if q.Finding != "" {
-		if q.Finding == "none" {
+		switch q.Finding {
+		case "none":
 			conditions = append(conditions, "finding IS NULL")
-		} else {
+		case "any":
+			conditions = append(conditions, "finding IS NOT NULL")
+		default:
 			conditions = append(conditions, fmt.Sprintf("finding = $%d", argIdx))
 			args = append(args, q.Finding)
 			argIdx++

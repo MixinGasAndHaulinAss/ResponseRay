@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, AlertOctagon, CheckCircle, Upload, FileUp,
@@ -10,6 +10,7 @@ import { formatNumber, EVENT_TYPE_LABELS, formatDateTimeShort } from '../lib/uti
 
 export default function Dashboard() {
   const { siteId } = useParams<{ siteId: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
@@ -62,8 +63,20 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard icon={Activity} label="Total Events" value={formatNumber(stats.total_events)} color="text-brand-400" />
-        <StatCard icon={AlertOctagon} label="Notable (CT)" value={formatNumber(stats.notable_count)} color="text-purple-400" />
-        <StatCard icon={AlertTriangle} label="Suspicious" value={formatNumber(stats.suspicious_count)} color="text-amber-400" />
+        <StatCard
+          icon={AlertOctagon}
+          label="Notable (CT)"
+          value={formatNumber(stats.notable_count)}
+          color="text-purple-400"
+          onClick={() => navigate(`/sites/${siteId}/findings?filter=notable`)}
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Suspicious"
+          value={formatNumber(stats.suspicious_count)}
+          color="text-amber-400"
+          onClick={() => navigate(`/sites/${siteId}/findings?filter=suspicious`)}
+        />
         <StatCard
           icon={Shield}
           label="Findings"
@@ -73,6 +86,7 @@ export default function Dashboard() {
             (stats.finding_counts.good || 0)
           )}
           color="text-green-400"
+          onClick={() => navigate(`/sites/${siteId}/findings?filter=all-findings`)}
         />
       </div>
 
@@ -81,23 +95,32 @@ export default function Dashboard() {
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
           <h2 className="text-sm font-semibold text-gray-400 uppercase mb-3">Findings</h2>
           <div className="flex gap-6">
-            {stats.finding_counts.bad && (
-              <div className="flex items-center gap-2">
+            {stats.finding_counts.bad != null && stats.finding_counts.bad > 0 && (
+              <button
+                onClick={() => navigate(`/sites/${siteId}/findings?filter=bad`)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
                 <span className="w-3 h-3 rounded-full bg-red-500" />
                 <span className="text-sm text-gray-300">Bad: {formatNumber(stats.finding_counts.bad)}</span>
-              </div>
+              </button>
             )}
-            {stats.finding_counts.suspicious && (
-              <div className="flex items-center gap-2">
+            {stats.finding_counts.suspicious != null && stats.finding_counts.suspicious > 0 && (
+              <button
+                onClick={() => navigate(`/sites/${siteId}/findings?filter=finding-suspicious`)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
                 <span className="w-3 h-3 rounded-full bg-amber-500" />
                 <span className="text-sm text-gray-300">Suspicious: {formatNumber(stats.finding_counts.suspicious)}</span>
-              </div>
+              </button>
             )}
-            {stats.finding_counts.good && (
-              <div className="flex items-center gap-2">
+            {stats.finding_counts.good != null && stats.finding_counts.good > 0 && (
+              <button
+                onClick={() => navigate(`/sites/${siteId}/findings?filter=good`)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
                 <span className="w-3 h-3 rounded-full bg-green-500" />
                 <span className="text-sm text-gray-300">Good: {formatNumber(stats.finding_counts.good)}</span>
-              </div>
+              </button>
             )}
           </div>
         </div>
@@ -135,15 +158,23 @@ export default function Dashboard() {
   )
 }
 
-function StatCard({ icon: Icon, label, value, color }: { icon: typeof Activity; label: string; value: string; color: string }) {
+function StatCard({ icon: Icon, label, value, color, onClick }: {
+  icon: typeof Activity; label: string; value: string; color: string; onClick?: () => void
+}) {
+  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+    <Wrapper
+      onClick={onClick}
+      className={`bg-gray-900 border border-gray-800 rounded-lg p-4 text-left w-full ${
+        onClick ? 'cursor-pointer hover:border-gray-600 hover:bg-gray-800/80 transition-colors' : ''
+      }`}
+    >
       <div className="flex items-center gap-2 mb-1">
         <Icon className={`w-4 h-4 ${color}`} />
         <span className="text-xs font-medium text-gray-500 uppercase">{label}</span>
       </div>
       <p className="text-2xl font-bold text-white">{value}</p>
-    </div>
+    </Wrapper>
   )
 }
 

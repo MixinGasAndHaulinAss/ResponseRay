@@ -20,6 +20,8 @@ import EventLog from './pages/EventLog'
 import FileSystem from './pages/FileSystem'
 import Timeline from './pages/Timeline'
 import SearchPage from './pages/SearchPage'
+import Findings from './pages/Findings'
+import RemoteAccess from './pages/RemoteAccess'
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -61,6 +63,8 @@ export default function App() {
         <Route path="filesystem" element={<FileSystem />} />
         <Route path="timeline" element={<Timeline />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="findings" element={<Findings />} />
+        <Route path="remote-access" element={<RemoteAccess />} />
       </Route>
     </Routes>
   )

@@ -1,38 +1,41 @@
 import { useState, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Flag, Search } from 'lucide-react'
+import { ArrowLeft, Flag, Search } from 'lucide-react'
 import { api, type Event } from '../lib/api'
 import { useEvents } from '../hooks/useEvents'
 import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
 import EventDetailPanel from '../components/EventDetailPanel'
-import { formatDateTime, cn } from '../lib/utils'
+import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
 
-interface EventViewProps {
-  title: string
-  eventTypes: string[]
-  columns: ColumnDef<Event, unknown>[]
-  tabs?: { key: string; label: string; eventTypes?: string[]; channel?: string; dataFilter?: Record<string, string> }[]
-  defaultSort?: string
-  defaultDir?: string
-}
+const FILTER_OPTIONS = [
+  { key: 'notable', label: 'Notable (CT)', color: 'text-purple-400' },
+  { key: 'suspicious', label: 'Suspicious', color: 'text-amber-400' },
+  { key: 'bad', label: 'Bad', color: 'text-red-400' },
+  { key: 'finding-suspicious', label: 'Marked Suspicious', color: 'text-amber-400' },
+  { key: 'good', label: 'Good', color: 'text-green-400' },
+  { key: 'all-findings', label: 'All Findings', color: 'text-brand-400' },
+]
 
 const SORTABLE_COLUMNS = new Set(['datetime'])
 
-export default function EventView({ title, eventTypes, columns, tabs, defaultSort, defaultDir }: EventViewProps) {
+export default function Findings() {
   const { siteId } = useParams<{ siteId: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const activeFilter = searchParams.get('filter') || 'notable'
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
-  const [activeTab, setActiveTab] = useState(0)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [findingEvent, setFindingEvent] = useState<Event | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [sortField, setSortField] = useState(defaultSort || 'datetime')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>((defaultDir as 'asc' | 'desc') || 'desc')
+  const [sortField, setSortField] = useState('datetime')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const handleSortChange = (field: string) => {
     if (sortField === field) {
@@ -44,20 +47,37 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
     setOffset(0)
   }
 
-  const currentTab = tabs?.[activeTab]
-  const activeEventTypes = currentTab?.eventTypes || eventTypes
-  const activeChannel = currentTab?.channel
-  const activeDataFilter = currentTab?.dataFilter
+  const eventsOptions = useMemo(() => {
+    const opts: Parameters<typeof useEvents>[0] = {
+      siteId: siteId!,
+      search,
+      sortField,
+      sortDir,
+    }
+    switch (activeFilter) {
+      case 'notable':
+        opts.notable = true
+        break
+      case 'suspicious':
+        opts.suspicious = true
+        break
+      case 'bad':
+        opts.finding = 'bad'
+        break
+      case 'finding-suspicious':
+        opts.finding = 'suspicious'
+        break
+      case 'good':
+        opts.finding = 'good'
+        break
+      case 'all-findings':
+        opts.finding = 'any'
+        break
+    }
+    return opts
+  }, [siteId, search, activeFilter, sortField, sortDir])
 
-  const { events, total, offset, setOffset, limit, isLoading } = useEvents({
-    siteId: siteId!,
-    eventTypes: activeEventTypes,
-    search,
-    channel: activeChannel,
-    dataFilters: activeDataFilter,
-    sortField,
-    sortDir,
-  })
+  const { events, total, offset, setOffset, limit, isLoading } = useEvents(eventsOptions)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,11 +85,15 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
     setOffset(0)
   }
 
+  const setFilter = (key: string) => {
+    setSearchParams({ filter: key })
+    setOffset(0)
+  }
+
   const handleSaveFinding = async (finding: string | null, note: string | null) => {
     if (!siteId || !findingEvent) return
     await api.updateFinding(siteId, findingEvent.id, { finding, finding_note: note })
     queryClient.invalidateQueries({ queryKey: ['events'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setFindingEvent(null)
   }
 
@@ -81,15 +105,14 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
       finding_note: null,
     })
     queryClient.invalidateQueries({ queryKey: ['events'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setSelectedIds(new Set())
   }
 
-  const allColumns: ColumnDef<Event, unknown>[] = useMemo(() => [
+  const activeLabel = FILTER_OPTIONS.find(f => f.key === activeFilter)?.label || 'Events'
+
+  const columns: ColumnDef<Event, unknown>[] = useMemo(() => [
     {
-      id: 'indicators',
-      header: '',
-      size: 60,
+      id: 'indicators', header: '', size: 60,
       cell: ({ row }) => (
         <FindingBadge
           finding={row.original.finding}
@@ -100,31 +123,49 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
       ),
     },
     {
-      id: 'datetime',
-      header: 'Timestamp',
+      id: 'datetime', header: 'Timestamp',
       cell: ({ row }) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>,
     },
-    ...columns,
     {
-      id: 'actions',
-      header: '',
-      size: 40,
+      id: 'event_type', header: 'Type',
+      cell: ({ row }) => (
+        <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
+          {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
+        </span>
+      ),
+    },
+    { id: 'source', header: 'Source', cell: ({ row }) => row.original.source_short || '-' },
+    { id: 'host', header: 'Host', cell: ({ row }) => row.original.host_name || '-' },
+    {
+      id: 'message', header: 'Message',
+      cell: ({ row }) => <span className="max-w-2xl truncate block">{row.original.message || '-'}</span>,
+    },
+    {
+      id: 'actions', header: '', size: 40,
       cell: ({ row }) => (
         <button
           onClick={(e) => { e.stopPropagation(); setFindingEvent(row.original) }}
           className="p-1 text-gray-600 hover:text-white"
-          title="Mark Finding"
         >
           <Flag className="w-3.5 h-3.5" />
         </button>
       ),
     },
-  ], [columns])
+  ], [])
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">{title}</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/sites/${siteId}/dashboard`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Dashboard
+          </button>
+          <h1 className="text-xl font-bold text-white">{activeLabel}</h1>
+        </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-1 mr-2">
@@ -140,7 +181,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search..."
                 className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
@@ -149,28 +190,26 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
         </div>
       </div>
 
-      {tabs && (
-        <div className="flex gap-1 border-b border-gray-800">
-          {tabs.map((tab, i) => (
-            <button
-              key={tab.key}
-              onClick={() => { setActiveTab(i); setOffset(0) }}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === i
-                  ? 'border-brand-500 text-brand-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-1 border-b border-gray-800">
+        {FILTER_OPTIONS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeFilter === f.key
+                ? `border-brand-500 ${f.color}`
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       <DataTable
         data={events}
-        columns={allColumns}
+        columns={columns}
         total={total}
         offset={offset}
         limit={limit}
@@ -189,7 +228,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
         <EventDetailPanel
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
-          onMarkFinding={() => { setFindingEvent(selectedEvent); }}
+          onMarkFinding={() => setFindingEvent(selectedEvent)}
         />
       )}
 

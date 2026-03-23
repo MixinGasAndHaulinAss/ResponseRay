@@ -40,6 +40,8 @@ func main() {
 	eventH := &handlers.EventHandler{DB: pool}
 	dashH := &handlers.DashboardHandler{DB: pool}
 	fsH := &handlers.FilesystemHandler{DB: pool}
+	logonH := &handlers.LogonHandler{DB: pool}
+	raH := &handlers.RemoteAccessHandler{DB: pool}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -70,10 +72,15 @@ func main() {
 
 			r.Get("/uploads", uploadH.List)
 			r.Post("/uploads", uploadH.Upload)
+			r.Post("/uploads/init", uploadH.InitChunkedUpload)
 			r.Get("/uploads/{uploadID}", uploadH.Status)
 			r.Delete("/uploads/{uploadID}", uploadH.Delete)
+			r.Put("/uploads/{uploadID}/chunks/{chunkIdx}", uploadH.UploadChunk)
+			r.Post("/uploads/{uploadID}/complete", uploadH.CompleteChunkedUpload)
 
 			r.Get("/filesystem", fsH.ListDir)
+			r.Get("/remote-access", raH.Detect)
+			r.Get("/logons/users", logonH.UserSummary)
 			r.Get("/events", eventH.Query)
 			r.Patch("/events/{eventID}/finding", eventH.UpdateFinding)
 			r.Post("/events/findings", eventH.BulkUpdateFinding)

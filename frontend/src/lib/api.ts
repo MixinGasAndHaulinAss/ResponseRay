@@ -62,27 +62,67 @@ export const api = {
   // Uploads
   listUploads: (siteId: string) => request<Upload[]>(`/sites/${siteId}/uploads`),
   uploadFile: async (siteId: string, file: File, onProgress?: (pct: number) => void): Promise<Upload> => {
-    const formData = new FormData()
-    formData.append('file', file)
+    const CHUNK_SIZE = 50 * 1024 * 1024 // 50 MB
+    const totalParts = Math.ceil(file.size / CHUNK_SIZE)
 
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open('POST', `${API_BASE}/sites/${siteId}/uploads`)
-      xhr.setRequestHeader('Authorization', getAuthHeader())
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && onProgress) {
-          onProgress(Math.round((e.loaded / e.total) * 100))
-        }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status === 201) resolve(JSON.parse(xhr.responseText))
-        else reject(new Error(xhr.responseText || xhr.statusText))
-      }
-      xhr.onerror = () => reject(new Error('Upload failed'))
-      xhr.send(formData)
+    const initRes = await fetch(`${API_BASE}/sites/${siteId}/uploads/init`, {
+      method: 'POST',
+      headers: { 'Authorization': getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        total_size: file.size,
+        chunk_size: CHUNK_SIZE,
+        total_parts: totalParts,
+      }),
     })
+    if (!initRes.ok) {
+      const text = await initRes.text()
+      throw new Error(text || 'Failed to initialize upload')
+    }
+    const { upload_id } = await initRes.json()
+
+    for (let i = 0; i < totalParts; i++) {
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, file.size)
+      const chunk = file.slice(start, end)
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', `${API_BASE}/sites/${siteId}/uploads/${upload_id}/chunks/${i}`)
+        xhr.setRequestHeader('Authorization', getAuthHeader())
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            const chunkProgress = e.loaded / e.total
+            const overall = ((i + chunkProgress) / totalParts) * 100
+            onProgress(Math.round(overall))
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else {
+            const text = xhr.responseText || xhr.statusText
+            const isHtml = text.trimStart().startsWith('<')
+            reject(new Error(isHtml ? `Chunk ${i + 1}/${totalParts} failed (${xhr.status})` : text))
+          }
+        }
+        xhr.onerror = () => reject(new Error(`Chunk ${i + 1}/${totalParts} failed — network error`))
+        xhr.send(chunk)
+      })
+    }
+
+    const completeRes = await fetch(`${API_BASE}/sites/${siteId}/uploads/${upload_id}/complete`, {
+      method: 'POST',
+      headers: { 'Authorization': getAuthHeader() },
+    })
+    if (!completeRes.ok) {
+      const text = await completeRes.text()
+      throw new Error(text || 'Failed to finalize upload')
+    }
+
+    onProgress?.(100)
+    return { id: upload_id, site_id: siteId, filename: file.name, host_name: '', status: 'pending', event_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
   },
   getUploadStatus: (siteId: string, uploadId: string) =>
     request<Upload>(`/sites/${siteId}/uploads/${uploadId}`),
@@ -92,6 +132,14 @@ export const api = {
   // Filesystem
   listDirectory: (siteId: string, path: string) =>
     request<FilesystemResponse>(`/sites/${siteId}/filesystem?path=${encodeURIComponent(path)}`),
+
+  // Logons
+  getLogonUsers: (siteId: string) =>
+    request<LogonUserSummary[]>(`/sites/${siteId}/logons/users`),
+
+  // Remote Access
+  detectRemoteAccess: (siteId: string) =>
+    request<RemoteAccessTool[]>(`/sites/${siteId}/remote-access`),
 
   // Events
   queryEvents: (siteId: string, params: Record<string, string>) => {
@@ -173,6 +221,29 @@ export interface FilesystemEntry {
 export interface FilesystemResponse {
   path: string
   entries: FilesystemEntry[]
+}
+
+export interface LogonUserSummary {
+  username: string
+  total_events: number
+  success_count: number
+  fail_count: number
+  unique_ips: number
+  first_seen: string
+  last_seen: string
+  auth_packages: string
+  logon_types: string
+  domain?: string
+}
+
+export interface RemoteAccessTool {
+  name: string
+  category: string
+  event_count: number
+  event_types: string[]
+  first_seen: string | null
+  last_seen: string | null
+  search_terms: string[]
 }
 
 export interface DashboardStats {

@@ -205,17 +205,6 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Sort direction toggle */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Sort:</span>
-        <button
-          onClick={() => { setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); setOffset(0) }}
-          className="text-xs px-2 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700"
-        >
-          {sortDir === 'asc' ? 'Oldest first' : 'Newest first'}
-        </button>
-      </div>
-
       <DataTable
         data={events}
         columns={columns}
@@ -227,6 +216,10 @@ export default function Timeline() {
         isLoading={isLoading}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        sortField="datetime"
+        sortDir={sortDir}
+        onSortChange={() => { setSortDir(sortDir === 'asc' ? 'desc' : 'asc'); setOffset(0) }}
+        sortableColumns={new Set(['datetime'])}
       />
 
       {selectedEvent && (

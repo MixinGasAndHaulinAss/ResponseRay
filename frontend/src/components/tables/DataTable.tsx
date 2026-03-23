@@ -5,7 +5,7 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn, formatNumber } from '../../lib/utils'
 
 interface DataTableProps<T> {
@@ -19,6 +19,10 @@ interface DataTableProps<T> {
   isLoading?: boolean
   selectedIds?: Set<number>
   onSelectionChange?: (ids: Set<number>) => void
+  sortField?: string
+  sortDir?: 'asc' | 'desc'
+  onSortChange?: (field: string) => void
+  sortableColumns?: Set<string>
 }
 
 export default function DataTable<T extends { id: number }>({
@@ -32,6 +36,10 @@ export default function DataTable<T extends { id: number }>({
   isLoading,
   selectedIds,
   onSelectionChange,
+  sortField,
+  sortDir,
+  onSortChange,
+  sortableColumns,
 }: DataTableProps<T>) {
   const table = useReactTable({
     data,
@@ -66,14 +74,32 @@ export default function DataTable<T extends { id: number }>({
                       />
                     </th>
                   )}
-                  {hg.headers.map((h) => (
-                    <th
-                      key={h.id}
-                      className="px-3 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap"
-                    >
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                    </th>
-                  ))}
+                  {hg.headers.map((h) => {
+                    const isSortable = sortableColumns?.has(h.id) && onSortChange
+                    const isActive = sortField === h.id
+                    return (
+                      <th
+                        key={h.id}
+                        className={cn(
+                          'px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap',
+                          isSortable ? 'cursor-pointer select-none hover:text-gray-200 transition-colors' : '',
+                          isActive ? 'text-brand-400' : 'text-gray-400'
+                        )}
+                        onClick={isSortable ? () => onSortChange(h.id) : undefined}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                          {isSortable && (
+                            isActive
+                              ? sortDir === 'asc'
+                                ? <ArrowUp className="w-3 h-3" />
+                                : <ArrowDown className="w-3 h-3" />
+                              : <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </span>
+                      </th>
+                    )
+                  })}
                 </tr>
               ))}
             </thead>

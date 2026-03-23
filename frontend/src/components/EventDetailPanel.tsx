@@ -1,4 +1,5 @@
-import { X, Tag, Flag } from 'lucide-react'
+import { useState } from 'react'
+import { X, Flag, Copy, Check } from 'lucide-react'
 import { Event } from '../lib/api'
 import { formatDateTime, EVENT_TYPE_LABELS } from '../lib/utils'
 import FindingBadge from './findings/FindingBadge'
@@ -7,6 +8,32 @@ interface Props {
   event: Event
   onClose: () => void
   onMarkFinding: () => void
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!value) return
+    await navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  if (!value || value === '-') return null
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-0.5 text-gray-600 hover:text-brand-400 transition-colors shrink-0"
+    >
+      {copied
+        ? <Check className="w-3.5 h-3.5 text-green-400" />
+        : <Copy className="w-3.5 h-3.5" />
+      }
+    </button>
+  )
 }
 
 export default function EventDetailPanel({ event, onClose, onMarkFinding }: Props) {
@@ -47,14 +74,20 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
 
         {event.message && (
           <div>
-            <label className="text-xs font-medium text-gray-500 uppercase">Message</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-500 uppercase">Message</label>
+              <CopyButton value={event.message} />
+            </div>
             <p className="mt-1 text-sm text-gray-200 bg-gray-800/50 p-3 rounded-md break-all">{event.message}</p>
           </div>
         )}
 
         {event.finding_note && (
           <div>
-            <label className="text-xs font-medium text-gray-500 uppercase">Finding Note</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-500 uppercase">Finding Note</label>
+              <CopyButton value={event.finding_note} />
+            </div>
             <p className="mt-1 text-sm text-gray-200 bg-gray-800/50 p-3 rounded-md">{event.finding_note}</p>
           </div>
         )}
@@ -62,14 +95,18 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
         <div>
           <label className="text-xs font-medium text-gray-500 uppercase mb-2 block">Event Data</label>
           <div className="bg-gray-800/50 rounded-md divide-y divide-gray-800">
-            {dataEntries.map(([key, value]) => (
-              <div key={key} className="flex gap-3 px-3 py-2 text-sm">
-                <span className="text-gray-500 font-mono text-xs min-w-[160px] flex-shrink-0 pt-0.5">{key}</span>
-                <span className="text-gray-200 break-all">
-                  {typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
-                </span>
-              </div>
-            ))}
+            {dataEntries.map(([key, value]) => {
+              const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')
+              return (
+                <div key={key} className="flex gap-3 px-3 py-2 text-sm group">
+                  <span className="text-gray-500 font-mono text-xs min-w-[160px] flex-shrink-0 pt-0.5">{key}</span>
+                  <span className="text-gray-200 break-all flex-1">{displayValue}</span>
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity self-start pt-0.5">
+                    <CopyButton value={displayValue} />
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -78,10 +115,16 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
 }
 
 function Field({ label, value }: { label: string; value?: string | null }) {
+  const displayValue = value || '-'
   return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 uppercase">{label}</label>
-      <p className="mt-0.5 text-sm text-gray-200 truncate">{value || '-'}</p>
+    <div className="group flex items-start justify-between gap-1">
+      <div className="min-w-0">
+        <label className="text-xs font-medium text-gray-500 uppercase">{label}</label>
+        <p className="mt-0.5 text-sm text-gray-200 truncate">{displayValue}</p>
+      </div>
+      <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-3.5">
+        <CopyButton value={displayValue} />
+      </span>
     </div>
   )
 }
