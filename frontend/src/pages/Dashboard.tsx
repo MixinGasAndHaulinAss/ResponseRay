@@ -25,7 +25,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        <span className="text-xs text-gray-600 font-mono">v{__APP_VERSION__}</span>
+        <span className="text-xs text-white font-mono">v{__APP_VERSION__}</span>
       </div>
 
       {/* Stats Cards */}

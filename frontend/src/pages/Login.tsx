@@ -27,6 +27,7 @@ export default function Login({ onLogin }: Props) {
         <div className="flex flex-col items-center mb-8">
           <img src="/responseray.png" alt="ResponseRay" className="h-40 mb-4" />
           <p className="text-sm text-gray-400 mt-1">DFIR Investigation Platform</p>
+          <span className="text-xs text-white font-mono mt-1">v{__APP_VERSION__}</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

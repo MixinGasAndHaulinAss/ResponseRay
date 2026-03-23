@@ -41,7 +41,7 @@ export default function Sites() {
             <Shield className="w-8 h-8 text-brand-500" />
             <div>
               <h1 className="text-2xl font-bold text-white">ResponseRay</h1>
-              <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-gray-600">v{__APP_VERSION__}</span></p>
+              <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-white">v{__APP_VERSION__}</span></p>
             </div>
           </div>
           <button
