@@ -38,9 +38,13 @@ func main() {
 	if artifactsDir == "" {
 		artifactsDir = "/data/artifacts"
 	}
+	reportsDir := os.Getenv("REPORTS_DIR")
+	if reportsDir == "" {
+		reportsDir = "/data/reports"
+	}
 
-	siteH := &handlers.SiteHandler{DB: pool}
-	uploadH := &handlers.UploadHandler{DB: pool, UploadDir: uploadDir}
+	siteH := &handlers.SiteHandler{DB: pool, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
+	uploadH := &handlers.UploadHandler{DB: pool, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
 	eventH := &handlers.EventHandler{DB: pool}
 	dashH := &handlers.DashboardHandler{DB: pool}
 	fsH := &handlers.FilesystemHandler{DB: pool, ArtifactsDir: artifactsDir}

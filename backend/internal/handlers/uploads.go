@@ -19,8 +19,10 @@ import (
 )
 
 type UploadHandler struct {
-	DB        *pgxpool.Pool
-	UploadDir string
+	DB           *pgxpool.Pool
+	UploadDir    string
+	ArtifactsDir string
+	ReportsDir   string
 }
 
 func (h *UploadHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -324,8 +326,12 @@ func (h *UploadHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	destDir := filepath.Join(h.UploadDir, uploadID.String())
-	os.RemoveAll(destDir)
+	uidStr := uploadID.String()
+	for _, dir := range []string{h.UploadDir, h.ArtifactsDir, h.ReportsDir} {
+		if dir != "" {
+			os.RemoveAll(filepath.Join(dir, uidStr))
+		}
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

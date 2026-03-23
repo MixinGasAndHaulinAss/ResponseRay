@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,7 +15,10 @@ import (
 )
 
 type SiteHandler struct {
-	DB *pgxpool.Pool
+	DB           *pgxpool.Pool
+	UploadDir    string
+	ArtifactsDir string
+	ReportsDir   string
 }
 
 func (h *SiteHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -138,10 +144,36 @@ func (h *SiteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rows, err := h.DB.Query(r.Context(), `SELECT id FROM uploads WHERE site_id = $1`, id)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	var uploadIDs []uuid.UUID
+	for rows.Next() {
+		var uid uuid.UUID
+		if err := rows.Scan(&uid); err == nil {
+			uploadIDs = append(uploadIDs, uid)
+		}
+	}
+	rows.Close()
+
 	_, err = h.DB.Exec(r.Context(), `DELETE FROM sites WHERE id = $1`, id)
 	if err != nil {
 		httpError(w, err)
 		return
+	}
+
+	for _, uid := range uploadIDs {
+		uidStr := uid.String()
+		for _, dir := range []string{h.UploadDir, h.ArtifactsDir, h.ReportsDir} {
+			if dir != "" {
+				p := filepath.Join(dir, uidStr)
+				if err := os.RemoveAll(p); err != nil {
+					log.Printf("cleanup %s: %v", p, err)
+				}
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
