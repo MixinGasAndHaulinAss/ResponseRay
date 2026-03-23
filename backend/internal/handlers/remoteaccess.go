@@ -95,6 +95,10 @@ func (h *RemoteAccessHandler) Detect(w http.ResponseWriter, r *http.Request) {
 
 	caseExpr := "CASE " + strings.Join(caseBranches, " ") + " ELSE -1 END"
 
+	// Exclude the massive file_timeline types which rarely contain
+	// useful remote access indicators and dominate row counts.
+	excludeTypes := "event_type NOT IN ('file_timeline', 'file_timeline_fn', 'srum_app_usage', 'srum_network_connectivity')"
+
 	query := fmt.Sprintf(`
 		SELECT tool_id,
 			COUNT(*) AS cnt,
@@ -104,11 +108,11 @@ func (h *RemoteAccessHandler) Detect(w http.ResponseWriter, r *http.Request) {
 		FROM (
 			SELECT event_type, datetime, %s AS tool_id
 			FROM events
-			WHERE %s AND message IS NOT NULL
+			WHERE %s AND %s AND message IS NOT NULL
 		) sub
 		WHERE tool_id >= 0
 		GROUP BY tool_id
-		ORDER BY cnt DESC`, caseExpr, where)
+		ORDER BY cnt DESC`, caseExpr, where, excludeTypes)
 
 	rows, err := h.DB.Query(r.Context(), query, args...)
 	if err != nil {
