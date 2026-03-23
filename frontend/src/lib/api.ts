@@ -181,7 +181,7 @@ export interface Upload {
   site_id: string
   filename: string
   host_name: string
-  status: 'pending' | 'processing' | 'complete' | 'error'
+  status: 'pending' | 'processing' | 'complete' | 'error' | 'chunking'
   event_count: number
   error_msg?: string
   created_at: string
