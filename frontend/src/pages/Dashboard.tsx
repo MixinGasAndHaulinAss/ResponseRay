@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { api, type DashboardStats } from '../lib/api'
 import { formatNumber, EVENT_TYPE_LABELS } from '../lib/utils'
+import { version } from '../../package.json'
 
 export default function Dashboard() {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
@@ -25,6 +26,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">Dashboard</h1>
+        <span className="text-xs text-gray-600 font-mono">v{version}</span>
       </div>
 
       {/* Stats Cards */}

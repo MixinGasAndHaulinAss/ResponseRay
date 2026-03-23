@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, Plus, Trash2, FolderOpen } from 'lucide-react'
 import { api, type SiteWithCounts } from '../lib/api'
 import { formatNumber, formatDateTimeShort } from '../lib/utils'
+import { version } from '../../package.json'
 
 export default function Sites() {
   const navigate = useNavigate()
@@ -41,7 +42,7 @@ export default function Sites() {
             <Shield className="w-8 h-8 text-brand-500" />
             <div>
               <h1 className="text-2xl font-bold text-white">ResponseRay</h1>
-              <p className="text-sm text-gray-400">DFIR Investigation Platform</p>
+              <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-gray-600">v{version}</span></p>
             </div>
           </div>
           <button
