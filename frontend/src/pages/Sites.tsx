@@ -24,7 +24,7 @@ export default function Sites() {
       setShowCreate(false)
       setName('')
       setDescription('')
-      navigate(`/sites/${site.id}/dashboard`)
+      navigate(`/sites/${site.id}`)
     },
   })
 
@@ -96,7 +96,7 @@ export default function Sites() {
             {sites.map((site) => (
               <div
                 key={site.id}
-                onClick={() => navigate(`/sites/${site.id}/dashboard`)}
+                onClick={() => navigate(`/sites/${site.id}`)}
                 className="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 cursor-pointer transition-colors group"
               >
                 <div className="flex items-start justify-between">
