@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Folder, File, ChevronRight, Home, AlertTriangle, Search,
-  ArrowUp, Shield, Hash
+  ArrowUp, Shield, Hash, Download
 } from 'lucide-react'
 import { api, type FilesystemEntry } from '../lib/api'
 import { formatDateTimeShort } from '../lib/utils'
@@ -151,7 +151,7 @@ export default function FileSystem() {
 
           {/* Files */}
           {filteredFiles.map((entry) => (
-            <FileRow key={'f-' + entry.name} entry={entry} formatSize={formatSize} />
+            <FileRow key={'f-' + entry.name} entry={entry} formatSize={formatSize} siteId={siteId!} uploadId={uploadId} currentPath={currentPath} />
           ))}
 
           {filteredDirs.length === 0 && filteredFiles.length === 0 && (
@@ -176,8 +176,38 @@ export default function FileSystem() {
   )
 }
 
-function FileRow({ entry, formatSize }: { entry: FilesystemEntry; formatSize: (s?: number) => string }) {
+function FileRow({ entry, formatSize, siteId, uploadId, currentPath }: {
+  entry: FilesystemEntry
+  formatSize: (s?: number) => string
+  siteId: string
+  uploadId?: string
+  currentPath: string
+}) {
   const [expanded, setExpanded] = useState(false)
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!uploadId) return
+    const password = localStorage.getItem('responseray_password') || ''
+    const authHeader = 'Basic ' + btoa('analyst:' + password)
+    const qs = new URLSearchParams({ path: currentPath, name: entry.name }).toString()
+    fetch(`/api/sites/${siteId}/filesystem/download/${uploadId}?${qs}`, {
+      headers: { 'Authorization': authHeader },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Download failed')
+        return res.blob()
+      })
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = entry.name
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+      .catch(err => alert(err.message))
+  }
 
   return (
     <>
@@ -190,6 +220,15 @@ function FileRow({ entry, formatSize }: { entry: FilesystemEntry; formatSize: (s
           <span className={`text-sm truncate ${entry.is_deleted ? 'text-red-400 line-through' : 'text-gray-300'}`}>
             {entry.name}
           </span>
+          {entry.has_artifact && (
+            <span
+              onClick={handleDownload}
+              title="Download captured file"
+              className="shrink-0 p-0.5 rounded hover:bg-gray-700 text-brand-400 hover:text-brand-300 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </span>
+          )}
         </div>
         <span className="text-xs text-gray-500 text-right font-mono self-center">
           {formatSize(entry.size)}
@@ -215,6 +254,17 @@ function FileRow({ entry, formatSize }: { entry: FilesystemEntry; formatSize: (s
 
       {expanded && (
         <div className="px-4 py-3 bg-gray-800/30 border-b border-gray-800/50 text-xs space-y-1">
+          {entry.has_artifact && (
+            <div className="flex gap-2">
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white rounded hover:bg-brand-500 transition-colors text-xs font-medium"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Captured File
+              </button>
+            </div>
+          )}
           {entry.md5 && (
             <div className="flex gap-2">
               <span className="text-gray-500 w-14">MD5</span>

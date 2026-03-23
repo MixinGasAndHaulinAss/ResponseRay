@@ -3,6 +3,8 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -10,23 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-
 type FilesystemHandler struct {
-	DB *pgxpool.Pool
+	DB           *pgxpool.Pool
+	ArtifactsDir string
 }
 
 type fsEntry struct {
-	Name        string  `json:"name"`
-	IsDir       bool    `json:"is_dir"`
-	Size        *int64  `json:"size,omitempty"`
-	FileCount   int     `json:"file_count,omitempty"`
-	LatestTime  *string `json:"latest_time,omitempty"`
-	MD5         *string `json:"md5,omitempty"`
-	SHA256      *string `json:"sha256,omitempty"`
-	IsDeleted   bool    `json:"is_deleted,omitempty"`
-	HasTimestomp bool   `json:"has_timestomp,omitempty"`
+	Name         string  `json:"name"`
+	IsDir        bool    `json:"is_dir"`
+	Size         *int64  `json:"size,omitempty"`
+	FileCount    int     `json:"file_count,omitempty"`
+	LatestTime   *string `json:"latest_time,omitempty"`
+	MD5          *string `json:"md5,omitempty"`
+	SHA256       *string `json:"sha256,omitempty"`
+	IsDeleted    bool    `json:"is_deleted,omitempty"`
+	HasTimestomp bool    `json:"has_timestomp,omitempty"`
 	Significance *string `json:"significance,omitempty"`
 	IsSuspicious bool    `json:"is_suspicious,omitempty"`
+	HasArtifact  bool    `json:"has_artifact,omitempty"`
 }
 
 type fsResponse struct {
@@ -119,12 +122,23 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 	}
 	defer fileRows.Close()
 
+	var uploadID string
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		uploadID = uid
+	}
+
 	for fileRows.Next() {
 		var e fsEntry
 		if err := fileRows.Scan(&e.Name, &e.Size, &e.LatestTime, &e.MD5, &e.SHA256,
 			&e.IsDeleted, &e.HasTimestomp, &e.Significance, &e.IsSuspicious); err != nil {
 			httpError(w, err)
 			return
+		}
+		if uploadID != "" && h.ArtifactsDir != "" {
+			diskPath := h.artifactDiskPath(uploadID, path, e.Name)
+			if _, err := os.Stat(diskPath); err == nil {
+				e.HasArtifact = true
+			}
 		}
 		entries = append(entries, e)
 	}
@@ -137,4 +151,57 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		Path:    path,
 		Entries: entries,
 	})
+}
+
+// artifactDiskPath converts a UI path + filename to the on-disk artifact path.
+// UI paths look like "/Windows/System32/" and the artifact dir structure is
+// {artifactsDir}/{uploadID}/{path without leading slash}/{filename}
+// ct-to-timesketch strips drive letters (C:\Windows -> C/Windows -> windows)
+// but may produce mixed case, so we try both the path as-is and lowercased.
+func (h *FilesystemHandler) artifactDiskPath(uploadID, uiPath, filename string) string {
+	rel := strings.TrimPrefix(uiPath, "/")
+	rel = strings.TrimSuffix(rel, "/")
+
+	primary := filepath.Join(h.ArtifactsDir, uploadID, rel, filename)
+	if _, err := os.Stat(primary); err == nil {
+		return primary
+	}
+
+	lowered := filepath.Join(h.ArtifactsDir, uploadID, strings.ToLower(rel), filename)
+	if _, err := os.Stat(lowered); err == nil {
+		return lowered
+	}
+
+	return primary
+}
+
+func (h *FilesystemHandler) Download(w http.ResponseWriter, r *http.Request) {
+	uploadID := chi.URLParam(r, "uploadID")
+	if _, err := uuid.Parse(uploadID); err != nil {
+		http.Error(w, "invalid upload ID", http.StatusBadRequest)
+		return
+	}
+
+	filePath := r.URL.Query().Get("path")
+	fileName := r.URL.Query().Get("name")
+	if filePath == "" || fileName == "" {
+		http.Error(w, "path and name are required", http.StatusBadRequest)
+		return
+	}
+
+	if strings.Contains(fileName, "/") || strings.Contains(fileName, "\\") ||
+		strings.Contains(fileName, "..") || strings.Contains(filePath, "..") {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	diskPath := h.artifactDiskPath(uploadID, filePath, fileName)
+
+	if _, err := os.Stat(diskPath); os.IsNotExist(err) {
+		http.Error(w, "artifact not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+	http.ServeFile(w, r, diskPath)
 }

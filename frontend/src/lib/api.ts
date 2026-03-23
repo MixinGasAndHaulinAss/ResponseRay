@@ -226,6 +226,7 @@ export interface FilesystemEntry {
   has_timestomp?: boolean
   significance?: string
   is_suspicious?: boolean
+  has_artifact?: boolean
 }
 
 export interface FilesystemResponse {

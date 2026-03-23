@@ -34,12 +34,16 @@ func main() {
 	if uploadDir == "" {
 		uploadDir = "/data/uploads"
 	}
+	artifactsDir := os.Getenv("ARTIFACTS_DIR")
+	if artifactsDir == "" {
+		artifactsDir = "/data/artifacts"
+	}
 
 	siteH := &handlers.SiteHandler{DB: pool}
 	uploadH := &handlers.UploadHandler{DB: pool, UploadDir: uploadDir}
 	eventH := &handlers.EventHandler{DB: pool}
 	dashH := &handlers.DashboardHandler{DB: pool}
-	fsH := &handlers.FilesystemHandler{DB: pool}
+	fsH := &handlers.FilesystemHandler{DB: pool, ArtifactsDir: artifactsDir}
 	logonH := &handlers.LogonHandler{DB: pool}
 	raH := &handlers.RemoteAccessHandler{DB: pool}
 
@@ -79,6 +83,7 @@ func main() {
 			r.Post("/uploads/{uploadID}/complete", uploadH.CompleteChunkedUpload)
 
 			r.Get("/filesystem", fsH.ListDir)
+			r.Get("/filesystem/download/{uploadID}", fsH.Download)
 			r.Get("/remote-access", raH.Detect)
 			r.Get("/logons/users", logonH.UserSummary)
 			r.Get("/events", eventH.Query)
