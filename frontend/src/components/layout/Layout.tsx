@@ -8,7 +8,7 @@ import { api } from '../../lib/api'
 const STORAGE_KEY = 'responseray_sidebar_collapsed'
 
 export default function Layout() {
-  const { siteId } = useParams()
+  const { siteId, uploadId } = useParams()
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(STORAGE_KEY) === 'true')
 
   const handleToggle = () => {
@@ -25,6 +25,14 @@ export default function Layout() {
     enabled: !!siteId,
   })
 
+  const { data: uploads } = useQuery({
+    queryKey: ['uploads', siteId],
+    queryFn: () => api.listUploads(siteId!),
+    enabled: !!siteId,
+  })
+
+  const currentUpload = uploads?.find(u => u.id === uploadId)
+
   return (
     <div className="flex min-h-screen">
       <Sidebar collapsed={collapsed} onToggle={handleToggle} />
@@ -34,7 +42,15 @@ export default function Layout() {
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <NavLink to="/" className="hover:text-white transition-colors">Sites</NavLink>
               <ChevronRight className="w-3 h-3" />
-              <span className="text-white font-medium">{site?.name || '...'}</span>
+              <NavLink to={`/sites/${siteId}`} className="hover:text-white transition-colors">
+                {site?.name || '...'}
+              </NavLink>
+              {uploadId && currentUpload && (
+                <>
+                  <ChevronRight className="w-3 h-3" />
+                  <span className="text-white font-medium">{currentUpload.filename}</span>
+                </>
+              )}
             </div>
           </header>
         )}

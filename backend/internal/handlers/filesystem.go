@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+
 type FilesystemHandler struct {
 	DB *pgxpool.Pool
 }
@@ -48,19 +49,30 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		path += "/"
 	}
 
-	// Get subdirectories: distinct file_names that are directories at this path
-	dirSQL := `
+	uploadFilter := ""
+	args := []interface{}{siteID, path}
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		parsed, parseErr := uuid.Parse(uid)
+		if parseErr != nil {
+			http.Error(w, "invalid upload_id", http.StatusBadRequest)
+			return
+		}
+		uploadFilter = " AND upload_id = $3"
+		args = append(args, parsed)
+	}
+
+	dirSQL := fmt.Sprintf(`
 		SELECT DISTINCT data->>'file_name' AS name,
 		       COUNT(*) AS file_count
 		FROM events
 		WHERE site_id = $1
 		  AND event_type IN ('file_timeline', 'file_timeline_fn')
 		  AND data->>'file_path' = $2
-		  AND data->>'meta_type' = 'Dir'
+		  AND data->>'meta_type' = 'Dir'%s
 		GROUP BY data->>'file_name'
-		ORDER BY name`
+		ORDER BY name`, uploadFilter)
 
-	dirRows, err := h.DB.Query(r.Context(), dirSQL, siteID, path)
+	dirRows, err := h.DB.Query(r.Context(), dirSQL, args...)
 	if err != nil {
 		httpError(w, fmt.Errorf("query dirs: %w", err))
 		return
@@ -82,8 +94,7 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Get files at this path
-	fileSQL := `
+	fileSQL := fmt.Sprintf(`
 		SELECT data->>'file_name' AS name,
 		       MAX((data->>'file_size')::bigint) FILTER (WHERE data->>'file_size' IS NOT NULL AND data->>'file_size' != '') AS size,
 		       MAX(datetime::text) AS latest_time,
@@ -97,11 +108,11 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		WHERE site_id = $1
 		  AND event_type IN ('file_timeline', 'file_timeline_fn')
 		  AND data->>'file_path' = $2
-		  AND (data->>'meta_type' IS NULL OR data->>'meta_type' != 'Dir')
+		  AND (data->>'meta_type' IS NULL OR data->>'meta_type' != 'Dir')%s
 		GROUP BY data->>'file_name'
-		ORDER BY name`
+		ORDER BY name`, uploadFilter)
 
-	fileRows, err := h.DB.Query(r.Context(), fileSQL, siteID, path)
+	fileRows, err := h.DB.Query(r.Context(), fileSQL, args...)
 	if err != nil {
 		httpError(w, fmt.Errorf("query files: %w", err))
 		return

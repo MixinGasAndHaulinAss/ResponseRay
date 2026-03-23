@@ -23,7 +23,7 @@ const FILTER_OPTIONS = [
 const SORTABLE_COLUMNS = new Set(['datetime'])
 
 export default function Findings() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -50,6 +50,7 @@ export default function Findings() {
   const eventsOptions = useMemo(() => {
     const opts: Parameters<typeof useEvents>[0] = {
       siteId: siteId!,
+      uploadId,
       search,
       sortField,
       sortDir,
@@ -75,7 +76,7 @@ export default function Findings() {
         break
     }
     return opts
-  }, [siteId, search, activeFilter, sortField, sortDir])
+  }, [siteId, uploadId, search, activeFilter, sortField, sortDir])
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents(eventsOptions)
 
@@ -158,7 +159,7 @@ export default function Findings() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`/sites/${siteId}/dashboard`)}
+            onClick={() => navigate(`/sites/${siteId}/captures/${uploadId}/dashboard`)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -11,7 +11,7 @@ import EventDetailPanel from '../components/EventDetailPanel'
 import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
 
 export default function Timeline() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -27,6 +27,7 @@ export default function Timeline() {
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents({
     siteId: siteId!,
+    uploadId,
     eventTypes: [],
     search,
     sortField: 'datetime',

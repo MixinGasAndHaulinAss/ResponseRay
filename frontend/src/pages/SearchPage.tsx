@@ -28,7 +28,7 @@ const columns = [
 ]
 
 export default function SearchPage() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [activeQuery, setActiveQuery] = useState('')
@@ -38,6 +38,7 @@ export default function SearchPage() {
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents({
     siteId: siteId!,
+    uploadId,
     search: activeQuery,
     finding: findingFilter,
     enabled: activeQuery.length > 0,

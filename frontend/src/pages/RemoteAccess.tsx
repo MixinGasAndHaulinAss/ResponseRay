@@ -31,14 +31,14 @@ const CATEGORY_ICONS: Record<string, typeof Radio> = {
 }
 
 export default function RemoteAccess() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const navigate = useNavigate()
   const [selectedTool, setSelectedTool] = useState<RemoteAccessTool | null>(null)
   const [filterCategory, setFilterCategory] = useState<string>('')
 
   const { data: tools, isLoading } = useQuery({
-    queryKey: ['remote-access', siteId],
-    queryFn: () => api.detectRemoteAccess(siteId!),
+    queryKey: ['remote-access', siteId, uploadId],
+    queryFn: () => api.detectRemoteAccess(siteId!, uploadId),
   })
 
   if (isLoading) return <div className="text-gray-500">Scanning for remote access software...</div>
@@ -206,7 +206,7 @@ export default function RemoteAccess() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          navigate(`/sites/${siteId}/search?q=${encodeURIComponent(tool.search_terms[0])}`)
+                          navigate(`/sites/${siteId}/captures/${uploadId}/search?q=${encodeURIComponent(tool.search_terms[0])}`)
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-500 transition-colors"
                       >

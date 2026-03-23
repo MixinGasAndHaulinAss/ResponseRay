@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -26,11 +27,23 @@ func (h *DashboardHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		FindingCounts: make(map[string]int64),
 	}
 
-	h.DB.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE site_id = $1`, siteID).Scan(&stats.TotalEvents)
-	h.DB.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE site_id = $1 AND ct_significance = 'LikelyNotable'`, siteID).Scan(&stats.NotableCount)
-	h.DB.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE site_id = $1 AND is_suspicious = TRUE`, siteID).Scan(&stats.SuspiciousCount)
+	where := "site_id = $1"
+	args := []interface{}{siteID}
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		parsed, parseErr := uuid.Parse(uid)
+		if parseErr != nil {
+			http.Error(w, "invalid upload_id", http.StatusBadRequest)
+			return
+		}
+		where += " AND upload_id = $2"
+		args = append(args, parsed)
+	}
 
-	rows, err := h.DB.Query(ctx, `SELECT event_type, COUNT(*) FROM events WHERE site_id = $1 GROUP BY event_type ORDER BY COUNT(*) DESC`, siteID)
+	h.DB.QueryRow(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM events WHERE %s`, where), args...).Scan(&stats.TotalEvents)
+	h.DB.QueryRow(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM events WHERE %s AND ct_significance = 'LikelyNotable'`, where), args...).Scan(&stats.NotableCount)
+	h.DB.QueryRow(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM events WHERE %s AND is_suspicious = TRUE`, where), args...).Scan(&stats.SuspiciousCount)
+
+	rows, err := h.DB.Query(ctx, fmt.Sprintf(`SELECT event_type, COUNT(*) FROM events WHERE %s GROUP BY event_type ORDER BY COUNT(*) DESC`, where), args...)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -41,7 +54,7 @@ func (h *DashboardHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	frows, err := h.DB.Query(ctx, `SELECT finding, COUNT(*) FROM events WHERE site_id = $1 AND finding IS NOT NULL GROUP BY finding`, siteID)
+	frows, err := h.DB.Query(ctx, fmt.Sprintf(`SELECT finding, COUNT(*) FROM events WHERE %s AND finding IS NOT NULL GROUP BY finding`, where), args...)
 	if err == nil {
 		defer frows.Close()
 		for frows.Next() {

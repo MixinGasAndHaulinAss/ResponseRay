@@ -33,7 +33,21 @@ func (h *LogonHandler) UserSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sql := `
+	where := "site_id = $1"
+	args := []interface{}{siteID}
+	argIdx := 2
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		parsed, parseErr := uuid.Parse(uid)
+		if parseErr != nil {
+			http.Error(w, "invalid upload_id", http.StatusBadRequest)
+			return
+		}
+		where += fmt.Sprintf(" AND upload_id = $%d", argIdx)
+		args = append(args, parsed)
+		argIdx++
+	}
+
+	sql := fmt.Sprintf(`
 		SELECT
 			COALESCE(data->>'TargetUserName', data->>'User', 'unknown') AS username,
 			COUNT(*) AS total_events,
@@ -57,12 +71,12 @@ func (h *LogonHandler) UserSummary(w http.ResponseWriter, r *http.Request) {
 				AND data->>'TargetDomainName' != ''
 				AND data->>'TargetDomainName' != '-') AS domain
 		FROM events
-		WHERE site_id = $1
+		WHERE %s
 		  AND event_type IN ('windows_logon', 'windows_authentication', 'windows_rdp', 'session_logon')
 		GROUP BY COALESCE(data->>'TargetUserName', data->>'User', 'unknown')
-		ORDER BY total_events DESC`
+		ORDER BY total_events DESC`, where)
 
-	rows, err := h.DB.Query(r.Context(), sql, siteID)
+	rows, err := h.DB.Query(r.Context(), sql, args...)
 	if err != nil {
 		httpError(w, fmt.Errorf("query logon users: %w", err))
 		return

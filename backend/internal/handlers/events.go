@@ -36,6 +36,15 @@ func (h *EventHandler) Query(w http.ResponseWriter, r *http.Request) {
 		DateTo:    r.URL.Query().Get("date_to"),
 	}
 
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		parsed, err := uuid.Parse(uid)
+		if err != nil {
+			http.Error(w, "invalid upload_id", http.StatusBadRequest)
+			return
+		}
+		q.UploadID = &parsed
+	}
+
 	if q.Limit > 1000 {
 		q.Limit = 1000
 	}
@@ -82,6 +91,12 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 	conditions = append(conditions, fmt.Sprintf("site_id = $%d", argIdx))
 	args = append(args, q.SiteID)
 	argIdx++
+
+	if q.UploadID != nil {
+		conditions = append(conditions, fmt.Sprintf("upload_id = $%d", argIdx))
+		args = append(args, *q.UploadID)
+		argIdx++
+	}
 
 	if len(q.EventTypes) > 0 {
 		placeholders := make([]string, len(q.EventTypes))

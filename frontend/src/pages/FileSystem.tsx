@@ -9,14 +9,14 @@ import { api, type FilesystemEntry } from '../lib/api'
 import { formatDateTimeShort } from '../lib/utils'
 
 export default function FileSystem() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const [currentPath, setCurrentPath] = useState('/')
   const [searchInput, setSearchInput] = useState('')
   const [searchFilter, setSearchFilter] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['filesystem', siteId, currentPath],
-    queryFn: () => api.listDirectory(siteId!, currentPath),
+    queryKey: ['filesystem', siteId, uploadId, currentPath],
+    queryFn: () => api.listDirectory(siteId!, currentPath, uploadId),
     enabled: !!siteId,
   })
 

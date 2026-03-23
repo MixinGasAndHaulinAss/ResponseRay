@@ -23,7 +23,7 @@ interface EventViewProps {
 const SORTABLE_COLUMNS = new Set(['datetime'])
 
 export default function EventView({ title, eventTypes, columns, tabs, defaultSort, defaultDir }: EventViewProps) {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -51,6 +51,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents({
     siteId: siteId!,
+    uploadId,
     eventTypes: activeEventTypes,
     search,
     channel: activeChannel,

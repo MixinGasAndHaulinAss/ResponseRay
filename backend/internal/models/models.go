@@ -51,8 +51,9 @@ type FindingUpdate struct {
 }
 
 type EventQuery struct {
-	SiteID     uuid.UUID `json:"site_id"`
-	EventTypes []string  `json:"event_types,omitempty"`
+	SiteID     uuid.UUID  `json:"site_id"`
+	UploadID   *uuid.UUID `json:"upload_id,omitempty"`
+	EventTypes []string   `json:"event_types,omitempty"`
 	Search     string    `json:"search,omitempty"`
 	Finding    string    `json:"finding,omitempty"`
 	SortField  string    `json:"sort_field,omitempty"`

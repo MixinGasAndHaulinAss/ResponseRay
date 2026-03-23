@@ -57,7 +57,10 @@ export const api = {
   deleteSite: (id: string) => request<void>(`/sites/${id}/`, { method: 'DELETE' }),
 
   // Dashboard
-  getDashboard: (siteId: string) => request<DashboardStats>(`/sites/${siteId}/dashboard`),
+  getDashboard: (siteId: string, uploadId?: string) => {
+    const qs = uploadId ? `?upload_id=${uploadId}` : ''
+    return request<DashboardStats>(`/sites/${siteId}/dashboard${qs}`)
+  },
 
   // Uploads
   listUploads: (siteId: string) => request<Upload[]>(`/sites/${siteId}/uploads`),
@@ -130,16 +133,23 @@ export const api = {
     request<void>(`/sites/${siteId}/uploads/${uploadId}`, { method: 'DELETE' }),
 
   // Filesystem
-  listDirectory: (siteId: string, path: string) =>
-    request<FilesystemResponse>(`/sites/${siteId}/filesystem?path=${encodeURIComponent(path)}`),
+  listDirectory: (siteId: string, path: string, uploadId?: string) => {
+    let qs = `path=${encodeURIComponent(path)}`
+    if (uploadId) qs += `&upload_id=${uploadId}`
+    return request<FilesystemResponse>(`/sites/${siteId}/filesystem?${qs}`)
+  },
 
   // Logons
-  getLogonUsers: (siteId: string) =>
-    request<LogonUserSummary[]>(`/sites/${siteId}/logons/users`),
+  getLogonUsers: (siteId: string, uploadId?: string) => {
+    const qs = uploadId ? `?upload_id=${uploadId}` : ''
+    return request<LogonUserSummary[]>(`/sites/${siteId}/logons/users${qs}`)
+  },
 
   // Remote Access
-  detectRemoteAccess: (siteId: string) =>
-    request<RemoteAccessTool[]>(`/sites/${siteId}/remote-access`),
+  detectRemoteAccess: (siteId: string, uploadId?: string) => {
+    const qs = uploadId ? `?upload_id=${uploadId}` : ''
+    return request<RemoteAccessTool[]>(`/sites/${siteId}/remote-access${qs}`)
+  },
 
   // Events
   queryEvents: (siteId: string, params: Record<string, string>) => {

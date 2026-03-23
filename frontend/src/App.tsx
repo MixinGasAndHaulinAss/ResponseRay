@@ -4,6 +4,7 @@ import { api } from './lib/api'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Sites from './pages/Sites'
+import Captures from './pages/Captures'
 import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
 import Logons from './pages/Logons'
@@ -46,25 +47,28 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Sites />} />
       <Route path="/sites/:siteId" element={<Layout />}>
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="accounts" element={<Accounts />} />
-        <Route path="logons" element={<Logons />} />
-        <Route path="processes" element={<Processes />} />
-        <Route path="powershell" element={<PowerShell />} />
-        <Route path="services" element={<Services />} />
-        <Route path="persistence" element={<Persistence />} />
-        <Route path="network" element={<Network />} />
-        <Route path="web-data" element={<WebData />} />
-        <Route path="defender" element={<Defender />} />
-        <Route path="srum" element={<SRUM />} />
-        <Route path="system" element={<SystemInfo />} />
-        <Route path="eventlog" element={<EventLog />} />
-        <Route path="filesystem" element={<FileSystem />} />
-        <Route path="timeline" element={<Timeline />} />
-        <Route path="search" element={<SearchPage />} />
-        <Route path="findings" element={<Findings />} />
-        <Route path="remote-access" element={<RemoteAccess />} />
+        <Route index element={<Captures />} />
+        <Route path="captures/:uploadId">
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="accounts" element={<Accounts />} />
+          <Route path="logons" element={<Logons />} />
+          <Route path="processes" element={<Processes />} />
+          <Route path="powershell" element={<PowerShell />} />
+          <Route path="services" element={<Services />} />
+          <Route path="persistence" element={<Persistence />} />
+          <Route path="remote-access" element={<RemoteAccess />} />
+          <Route path="network" element={<Network />} />
+          <Route path="web-data" element={<WebData />} />
+          <Route path="defender" element={<Defender />} />
+          <Route path="srum" element={<SRUM />} />
+          <Route path="system" element={<SystemInfo />} />
+          <Route path="eventlog" element={<EventLog />} />
+          <Route path="filesystem" element={<FileSystem />} />
+          <Route path="timeline" element={<Timeline />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="findings" element={<Findings />} />
+        </Route>
       </Route>
     </Routes>
   )

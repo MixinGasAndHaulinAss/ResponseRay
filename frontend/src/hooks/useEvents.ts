@@ -4,6 +4,7 @@ import { api, type Event, type PagedResult } from '../lib/api'
 
 interface UseEventsOptions {
   siteId: string
+  uploadId?: string
   eventTypes?: string[]
   search?: string
   channel?: string
@@ -27,6 +28,7 @@ export function useEvents(options: UseEventsOptions) {
     offset: String(offset),
     limit: String(pageLimit),
   }
+  if (options.uploadId) params.upload_id = options.uploadId
   if (options.eventTypes?.length) params.event_types = options.eventTypes.join(',')
   if (options.search) params.search = options.search
   if (options.channel) params.channel = options.channel

@@ -203,7 +203,7 @@ function UserLogonDetail({
   user: LogonUserSummary
   onBack: () => void
 }) {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -236,6 +236,7 @@ function UserLogonDetail({
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents({
     siteId: siteId!,
+    uploadId,
     eventTypes: currentTab.eventTypes || ['windows_logon', 'windows_authentication', 'windows_rdp', 'session_logon'],
     search,
     dataFilters: userFilter,
@@ -444,14 +445,14 @@ function UserLogonDetail({
 }
 
 export default function Logons() {
-  const { siteId } = useParams<{ siteId: string }>()
+  const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const [selectedUser, setSelectedUser] = useState<LogonUserSummary | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [showMachineAccounts, setShowMachineAccounts] = useState(false)
 
   const { data: users, isLoading } = useQuery<LogonUserSummary[]>({
-    queryKey: ['logon-users', siteId],
-    queryFn: () => api.getLogonUsers(siteId!),
+    queryKey: ['logon-users', siteId, uploadId],
+    queryFn: () => api.getLogonUsers(siteId!, uploadId),
   })
 
   if (selectedUser) {

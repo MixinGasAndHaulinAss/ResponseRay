@@ -66,6 +66,18 @@ func (h *RemoteAccessHandler) Detect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uploadFilter := ""
+	args := []interface{}{siteID}
+	if uid := r.URL.Query().Get("upload_id"); uid != "" {
+		parsed, parseErr := uuid.Parse(uid)
+		if parseErr != nil {
+			http.Error(w, "invalid upload_id", http.StatusBadRequest)
+			return
+		}
+		uploadFilter = " AND upload_id = $2"
+		args = append(args, parsed)
+	}
+
 	var results []remoteAccessTool
 
 	for _, tool := range knownTools {
@@ -82,13 +94,13 @@ func (h *RemoteAccessHandler) Detect(w http.ResponseWriter, r *http.Request) {
 			MIN(datetime)::text,
 			MAX(datetime)::text
 		FROM events
-		WHERE site_id = $1 AND (` + ilikeClauses + `)`
+		WHERE site_id = $1` + uploadFilter + ` AND (` + ilikeClauses + `)`
 
 		var count int64
 		var eventTypes []string
 		var firstSeen, lastSeen *string
 
-		err := h.DB.QueryRow(r.Context(), query, siteID).Scan(&count, &eventTypes, &firstSeen, &lastSeen)
+		err := h.DB.QueryRow(r.Context(), query, args...).Scan(&count, &eventTypes, &firstSeen, &lastSeen)
 		if err != nil || count == 0 {
 			continue
 		}

@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { siteId } = useParams()
+  const { siteId, uploadId } = useParams()
 
   return (
     <aside
@@ -49,12 +49,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </NavLink>
       </div>
 
-      {siteId && (
+      {siteId && uploadId && (
         <nav className="flex-1 overflow-y-auto py-2">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
-              to={`/sites/${siteId}/${to}`}
+              to={`/sites/${siteId}/captures/${uploadId}/${to}`}
               title={collapsed ? label : undefined}
               className={({ isActive }) =>
                 cn(
@@ -70,6 +70,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               {!collapsed && label}
             </NavLink>
           ))}
+        </nav>
+      )}
+
+      {siteId && !uploadId && (
+        <nav className="flex-1 overflow-y-auto py-2">
+          <div className={cn(
+            'flex items-center text-sm text-gray-500',
+            collapsed ? 'justify-center px-2 py-2.5' : 'gap-2.5 px-4 py-2'
+          )}>
+            {!collapsed && <span className="text-xs italic">Select a capture to begin</span>}
+          </div>
         </nav>
       )}
 
