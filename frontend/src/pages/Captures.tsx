@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, FileUp, HardDrive, Clock, AlertCircle,
-  CheckCircle2, Loader2, ChevronRight
+  CheckCircle2, Loader2, ChevronRight, Trash2
 } from 'lucide-react'
 import { api, type Upload as UploadType } from '../lib/api'
 import { formatNumber, formatDateTimeShort } from '../lib/utils'
@@ -112,6 +112,18 @@ export default function Captures() {
     }
   }
 
+  const handleDelete = async (e: React.MouseEvent, upload: UploadType) => {
+    e.stopPropagation()
+    if (!siteId) return
+    if (!confirm(`Delete "${upload.filename}"? This cannot be undone.`)) return
+    try {
+      await api.deleteUpload(siteId, upload.id)
+      queryClient.invalidateQueries({ queryKey: ['uploads', siteId] })
+    } catch (err) {
+      alert('Delete failed: ' + (err as Error).message)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -191,9 +203,20 @@ export default function Captures() {
                       </div>
                     </div>
                   </div>
-                  {isReady && (
-                    <ChevronRight className="w-5 h-5 text-gray-500 shrink-0 ml-4" />
-                  )}
+                  <div className="flex items-center gap-2 shrink-0 ml-4">
+                    {(upload.status === 'error' || upload.status === 'chunking' || isReady) && (
+                      <button
+                        onClick={(e) => handleDelete(e, upload)}
+                        className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Delete capture"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isReady && (
+                      <ChevronRight className="w-5 h-5 text-gray-500" />
+                    )}
+                  </div>
                 </div>
               </button>
             )

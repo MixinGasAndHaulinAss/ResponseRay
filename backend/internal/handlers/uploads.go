@@ -373,6 +373,10 @@ func (h *UploadHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.Redis != nil {
+		rdb.ClearProgress(r.Context(), h.Redis, uploadID)
+	}
+
 	uidStr := uploadID.String()
 	for _, dir := range []string{h.UploadDir, h.ArtifactsDir, h.ReportsDir} {
 		if dir != "" {
