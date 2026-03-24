@@ -93,11 +93,20 @@ func tokenize(input string) []token {
 			i++
 		case '"':
 			i++
-			start := i
+			var buf []rune
 			for i < len(runes) && runes[i] != '"' {
+				if runes[i] == '\\' && i+1 < len(runes) {
+					next := runes[i+1]
+					if next == '\\' || next == '"' {
+						buf = append(buf, next)
+						i += 2
+						continue
+					}
+				}
+				buf = append(buf, runes[i])
 				i++
 			}
-			tokens = append(tokens, token{tokQuoted, string(runes[start:i])})
+			tokens = append(tokens, token{tokQuoted, string(buf)})
 			if i < len(runes) {
 				i++ // skip closing quote
 			}
