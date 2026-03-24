@@ -193,6 +193,13 @@ export interface Upload {
   error_msg?: string
   created_at: string
   updated_at: string
+  progress_stage?: string
+  progress_percent?: number
+  events_processed?: number
+  events_total?: number
+  queue_position?: number
+  queue_length?: number
+  processing_started_at?: string
 }
 
 export interface Event {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,11 +16,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/responseray/responseray/internal/models"
+	"github.com/responseray/responseray/internal/rdb"
 )
 
 type UploadHandler struct {
 	DB           *pgxpool.Pool
+	Redis        *redis.Client
 	UploadDir    string
 	ArtifactsDir string
 	ReportsDir   string
@@ -52,6 +56,35 @@ func (h *UploadHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if uploads == nil {
 		uploads = []models.Upload{}
+	}
+
+	if h.Redis != nil {
+		qLen, _ := rdb.QueueLength(r.Context(), h.Redis)
+		for i := range uploads {
+			if uploads[i].Status != "pending" && uploads[i].Status != "processing" {
+				continue
+			}
+			prog, err := rdb.GetProgress(r.Context(), h.Redis, uploads[i].ID)
+			if err != nil || prog == nil {
+				continue
+			}
+			uploads[i].ProgressStage = prog.Stage
+			uploads[i].EventsProcessed = prog.EventsProcessed
+			uploads[i].EventsTotal = prog.EventsTotal
+			uploads[i].ProcessingStart = prog.StartedAt
+
+			if prog.Stage == "ingesting" && prog.EventsTotal > 0 {
+				uploads[i].ProgressPercent = int(prog.EventsProcessed * 100 / prog.EventsTotal)
+			} else if prog.Stage == "queued" {
+				pos, _ := rdb.QueuePosition(r.Context(), h.Redis, uploads[i].ID)
+				if pos > 0 {
+					uploads[i].QueuePosition = pos
+				}
+				uploads[i].QueueLength = qLen
+			} else {
+				uploads[i].ProgressPercent = -1
+			}
+		}
 	}
 
 	writeJSON(w, uploads)
@@ -108,6 +141,13 @@ func (h *UploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpError(w, err)
 		return
+	}
+
+	if h.Redis != nil {
+		if err := rdb.EnqueueUpload(r.Context(), h.Redis, upload.ID); err != nil {
+			log.Printf("Warning: failed to enqueue upload %s: %v", upload.ID, err)
+		}
+		rdb.SetProgressWithStart(r.Context(), h.Redis, upload.ID, "queued", time.Now())
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -283,6 +323,13 @@ func (h *UploadHandler) CompleteChunkedUpload(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		httpError(w, err)
 		return
+	}
+
+	if h.Redis != nil {
+		if err := rdb.EnqueueUpload(r.Context(), h.Redis, uploadID); err != nil {
+			log.Printf("Warning: failed to enqueue upload %s: %v", uploadID, err)
+		}
+		rdb.SetProgressWithStart(r.Context(), h.Redis, uploadID, "queued", time.Now())
 	}
 
 	writeJSON(w, map[string]interface{}{

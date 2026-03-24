@@ -50,7 +50,27 @@ type eventRow struct {
 	Data           json.RawMessage
 }
 
-func (ing *Ingester) IngestJSONL(ctx context.Context, filePath string, uploadID, siteID uuid.UUID) (int64, string, error) {
+type ProgressFunc func(processed, total int64)
+
+func CountLines(filePath string) (int64, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	var count int64
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	for scanner.Scan() {
+		if len(scanner.Bytes()) > 0 {
+			count++
+		}
+	}
+	return count, scanner.Err()
+}
+
+func (ing *Ingester) IngestJSONL(ctx context.Context, filePath string, uploadID, siteID uuid.UUID, onProgress ProgressFunc) (int64, string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return 0, "", fmt.Errorf("open jsonl: %w", err)
@@ -125,6 +145,9 @@ func (ing *Ingester) IngestJSONL(ctx context.Context, filePath string, uploadID,
 			totalInserted += n
 			batch = batch[:0]
 
+			if onProgress != nil {
+				onProgress(totalInserted, 0)
+			}
 			if totalInserted%100000 == 0 {
 				log.Printf("Ingested %d events...", totalInserted)
 			}

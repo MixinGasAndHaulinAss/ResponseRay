@@ -25,6 +25,14 @@ type Upload struct {
 	ErrorMsg   string    `json:"error_msg,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+
+	ProgressStage    string `json:"progress_stage,omitempty"`
+	ProgressPercent  int    `json:"progress_percent,omitempty"`
+	EventsProcessed  int64  `json:"events_processed,omitempty"`
+	EventsTotal      int64  `json:"events_total,omitempty"`
+	QueuePosition    int64  `json:"queue_position,omitempty"`
+	QueueLength      int64  `json:"queue_length,omitempty"`
+	ProcessingStart  string `json:"processing_started_at,omitempty"`
 }
 
 type Event struct {

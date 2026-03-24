@@ -12,6 +12,7 @@ import (
 	"github.com/responseray/responseray/internal/auth"
 	"github.com/responseray/responseray/internal/db"
 	"github.com/responseray/responseray/internal/handlers"
+	"github.com/responseray/responseray/internal/rdb"
 )
 
 func main() {
@@ -30,6 +31,18 @@ func main() {
 	}
 	log.Println("Database migrations applied")
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "127.0.0.1:6379"
+	}
+	redisClient, err := rdb.Connect(redisAddr)
+	if err != nil {
+		log.Printf("Warning: Redis not available at %s: %v (progress tracking disabled)", redisAddr, err)
+	} else {
+		log.Printf("Connected to Redis at %s", redisAddr)
+		defer redisClient.Close()
+	}
+
 	uploadDir := os.Getenv("UPLOAD_DIR")
 	if uploadDir == "" {
 		uploadDir = "/data/uploads"
@@ -44,7 +57,7 @@ func main() {
 	}
 
 	siteH := &handlers.SiteHandler{DB: pool, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
-	uploadH := &handlers.UploadHandler{DB: pool, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
+	uploadH := &handlers.UploadHandler{DB: pool, Redis: redisClient, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
 	eventH := &handlers.EventHandler{DB: pool}
 	dashH := &handlers.DashboardHandler{DB: pool}
 	fsH := &handlers.FilesystemHandler{DB: pool, ArtifactsDir: artifactsDir}

@@ -5,31 +5,34 @@ A web-based Digital Forensics and Incident Response (DFIR) platform for investig
 ## Architecture
 
 ```
-┌──────────────┐    ┌─────────────┐    ┌────────────────┐
+┌──────────────┐    ┌─────────────┐    ┌────────────────────┐
 │   React UI   │◄──►│    Nginx    │◄──►│   Go API + Worker  │
 │  (Vite/TS)   │    │  (reverse   │    │   (chi router)     │
 │  Tailwind    │    │   proxy)    │    │                    │
-└──────────────┘    └─────────────┘    └────────┬───────────┘
-                                                │
-                                       ┌────────▼───────────┐
-                                       │   PostgreSQL 16    │
-                                       │   (JSONB events)   │
-                                       └────────────────────┘
+└──────────────┘    └─────────────┘    └──┬──────────────┬──┘
+                                          │              │
+                                 ┌────────▼────────┐  ┌──▼──────────┐
+                                 │  PostgreSQL 16  │  │  Redis 7    │
+                                 │  (JSONB events) │  │  (job queue │
+                                 │                 │  │  + progress)│
+                                 └─────────────────┘  └─────────────┘
 ```
 
 | Component | Tech |
 |-----------|------|
 | Backend API | Go 1.22, chi router, pgx/v5 connection pool |
-| Background Worker | Go — polls for pending uploads, runs ct-to-timesketch, ingests JSONL |
+| Background Worker | Go — consumes jobs from Redis queue, runs ct-to-timesketch, ingests JSONL |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Table/Query |
 | Database | PostgreSQL 16 with JSONB event storage, trigram indexes |
+| Job Queue | Redis 7 (Docker) — BRPOP-based job queue with real-time progress tracking |
 | Reverse Proxy | Nginx (Docker) — serves static frontend, proxies `/api/` to Go |
 | Auth | Password + API key (designed to sit behind Cloudflare Zero Trust) |
 
 ## Features
 
 - **Incident Management** — Create sites (incidents), upload multiple CyberTriage captures per site, and investigate each capture independently
-- **Automatic Parsing** — Uploaded `.json.gz` captures are processed by ct-to-timesketch and ingested into PostgreSQL
+- **Automatic Parsing** — Uploaded `.json.gz` captures are queued in Redis and processed sequentially by ct-to-timesketch, then ingested into PostgreSQL
+- **Processing Progress** — Real-time progress tracking on the Captures page: queue position, processing stage, event ingest progress bar, and elapsed time
 - **Chunked Uploads** — Files are split into 50 MB chunks on the client side to work behind Cloudflare's 100 MB limit
 - **Per-Capture Isolation** — Each upload's data is scoped independently; select a capture within a site to view its data
 - **Dashboard** — High-level stats: total events, notable/suspicious counts, findings breakdown, event type distribution
@@ -75,6 +78,7 @@ ResponseRay/
 │       ├── db/db.go             # PostgreSQL connection + migrations
 │       ├── handlers/            # HTTP handlers (sites, uploads, events, etc.)
 │       ├── ingest/ingest.go     # JSONL → PostgreSQL ingestion
+│       ├── rdb/rdb.go           # Redis client, job queue, progress tracking
 │       └── models/models.go     # Shared data structures
 ├── frontend/
 │   ├── src/
@@ -106,6 +110,7 @@ POSTGRES_DB=responseray
 POSTGRES_USER=responseray
 POSTGRES_PASSWORD=your_secure_password
 AUTH_PASSWORD=your_login_password
+REDIS_ADDR=127.0.0.1:6379
 UPLOAD_DIR=/data/uploads
 ARTIFACTS_DIR=/data/artifacts
 REPORTS_DIR=/data/reports
@@ -113,11 +118,13 @@ CT_BINARY_PATH=/usr/local/bin/ct-to-timesketch
 API_PORT=8080
 ```
 
-### 2. Start PostgreSQL and Nginx
+### 2. Start PostgreSQL, Redis, and Nginx
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
+
+Redis runs as a Docker container with AOF persistence enabled. Data is stored in the `redisdata` volume.
 
 Update `nginx.conf` if your port differs, then:
 
@@ -792,6 +799,7 @@ Common `event_type` values found in parsed CyberTriage captures:
 | `POSTGRES_DB` | `responseray` | Database name |
 | `POSTGRES_USER` | `responseray` | Database user |
 | `POSTGRES_PASSWORD` | `changeme_in_production` | Database password |
+| `REDIS_ADDR` | `127.0.0.1:6379` | Redis address for job queue and progress |
 | `API_PORT` | `8080` | Go API listen port |
 | `AUTH_PASSWORD` | `changeme_in_production` | Login password |
 | `CT_BINARY_PATH` | `/usr/local/bin/ct-to-timesketch` | Path to ct-to-timesketch binary |

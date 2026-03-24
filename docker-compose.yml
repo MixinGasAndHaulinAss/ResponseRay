@@ -24,12 +24,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-responseray}
       POSTGRES_USER: ${POSTGRES_USER:-responseray}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      REDIS_ADDR: redis:6379
       API_PORT: "8080"
       AUTH_PASSWORD: ${AUTH_PASSWORD:-changeme_in_production}
       CT_BINARY_PATH: /usr/local/bin/ct-to-timesketch
@@ -38,6 +41,20 @@ services:
       REPORTS_DIR: /data/reports
     volumes:
       - appdata:/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   nginx:
     image: nginx:alpine
@@ -60,4 +77,5 @@ services:
 volumes:
   pgdata:
   appdata:
+  redisdata:
   frontend_build:

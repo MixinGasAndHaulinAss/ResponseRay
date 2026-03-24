@@ -16,6 +16,67 @@ const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; b
   error:      { icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
 }
 
+const stageLabels: Record<string, string> = {
+  queued: 'Queued',
+  analyzing: 'Analyzing capture...',
+  preparing: 'Preparing to ingest...',
+  ingesting: 'Ingesting events...',
+  detecting: 'Detecting remote access tools...',
+}
+
+function formatElapsed(startedAt?: string): string {
+  if (!startedAt) return ''
+  const start = new Date(startedAt).getTime()
+  const now = Date.now()
+  const seconds = Math.floor((now - start) / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (minutes < 60) return `${minutes}m ${secs}s`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours}h ${mins}m`
+}
+
+function ProgressDisplay({ upload }: { upload: UploadType }) {
+  const stage = upload.progress_stage
+  if (!stage) return null
+
+  const label = stageLabels[stage] || stage
+  const percent = upload.progress_percent ?? -1
+  const isIndeterminate = percent < 0
+  const elapsed = formatElapsed(upload.processing_started_at)
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-blue-400 font-medium">{label}</span>
+        <span className="text-gray-500">
+          {stage === 'ingesting' && upload.events_total && upload.events_total > 0
+            ? `${formatNumber(upload.events_processed || 0)} / ${formatNumber(upload.events_total)} events`
+            : stage === 'queued' && upload.queue_position
+              ? `Position ${upload.queue_position} of ${upload.queue_length}`
+              : null
+          }
+          {elapsed && <span className="ml-2 text-gray-600">{elapsed}</span>}
+        </span>
+      </div>
+      {stage !== 'queued' && (
+        <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          {isIndeterminate ? (
+            <div className="h-full w-1/3 bg-blue-500 rounded-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite]" />
+          ) : (
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(percent, 100)}%` }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Captures() {
   const { siteId } = useParams<{ siteId: string }>()
   const navigate = useNavigate()
@@ -26,7 +87,7 @@ export default function Captures() {
   const { data: uploads, isLoading } = useQuery({
     queryKey: ['uploads', siteId],
     queryFn: () => api.listUploads(siteId!),
-    refetchInterval: 5000,
+    refetchInterval: 3000,
   })
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +145,7 @@ export default function Captures() {
             const cfg = statusConfig[upload.status] || statusConfig.pending
             const StatusIcon = cfg.icon
             const isReady = upload.status === 'complete'
+            const isActive = upload.status === 'processing' || upload.status === 'pending'
 
             return (
               <button
@@ -97,37 +159,40 @@ export default function Captures() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className={`p-3 rounded-lg ${cfg.bg}`}>
-                      <HardDrive className={`w-6 h-6 ${cfg.color}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-foreground truncate">
-                        {upload.filename}
-                      </h3>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
-                        <span className={`flex items-center gap-1.5 ${cfg.color}`}>
-                          <StatusIcon className={`w-3.5 h-3.5 ${upload.status === 'processing' || upload.status === 'chunking' ? 'animate-spin' : ''}`} />
-                          <span className="capitalize">{upload.status}</span>
-                        </span>
-                        {upload.host_name && (
-                          <span>{upload.host_name}</span>
-                        )}
-                        {upload.event_count > 0 && (
-                          <span>{formatNumber(upload.event_count)} events</span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDateTimeShort(upload.created_at)}
-                        </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-lg ${cfg.bg} shrink-0`}>
+                        <HardDrive className={`w-6 h-6 ${cfg.color}`} />
                       </div>
-                      {upload.error_msg && (
-                        <p className="mt-1 text-xs text-red-400">{upload.error_msg}</p>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold text-foreground truncate">
+                          {upload.filename}
+                        </h3>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">
+                          <span className={`flex items-center gap-1.5 ${cfg.color}`}>
+                            <StatusIcon className={`w-3.5 h-3.5 ${upload.status === 'processing' || upload.status === 'chunking' ? 'animate-spin' : ''}`} />
+                            <span className="capitalize">{upload.status}</span>
+                          </span>
+                          {upload.host_name && (
+                            <span>{upload.host_name}</span>
+                          )}
+                          {upload.event_count > 0 && (
+                            <span>{formatNumber(upload.event_count)} events</span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDateTimeShort(upload.created_at)}
+                          </span>
+                        </div>
+                        {upload.error_msg && (
+                          <p className="mt-1 text-xs text-red-400">{upload.error_msg}</p>
+                        )}
+                        {isActive && <ProgressDisplay upload={upload} />}
+                      </div>
                     </div>
                   </div>
                   {isReady && (
-                    <ChevronRight className="w-5 h-5 text-gray-500 shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-gray-500 shrink-0 ml-4" />
                   )}
                 </div>
               </button>
@@ -135,6 +200,14 @@ export default function Captures() {
           })}
         </div>
       )}
+
+      <style>{`
+        @keyframes progress-indeterminate {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(200%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
     </div>
   )
 }
