@@ -95,13 +95,10 @@ func tokenize(input string) []token {
 			i++
 			var buf []rune
 			for i < len(runes) && runes[i] != '"' {
-				if runes[i] == '\\' && i+1 < len(runes) {
-					next := runes[i+1]
-					if next == '\\' || next == '"' {
-						buf = append(buf, next)
-						i += 2
-						continue
-					}
+				if runes[i] == '\\' && i+1 < len(runes) && runes[i+1] == '"' {
+					buf = append(buf, '"')
+					i += 2
+					continue
 				}
 				buf = append(buf, runes[i])
 				i++

@@ -22,8 +22,8 @@ export function useQueryContext() {
 }
 
 function escapeValue(value: string): string {
-  if (/[\s":()\\]/.test(value)) {
-    return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  if (/[\s":()]/.test(value)) {
+    return `"${value.replace(/"/g, '\\"')}"`
   }
   return value
 }
@@ -42,7 +42,7 @@ export function parseFilters(query: string): { field: string; value: string; exc
     const field = match[2]
     let value = match[3]
     if (value.startsWith('"') && value.endsWith('"')) {
-      value = value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      value = value.slice(1, -1).replace(/\\"/g, '"')
     }
     filters.push({ field, value, exclude, raw: match[0] })
   }
