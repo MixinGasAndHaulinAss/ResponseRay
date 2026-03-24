@@ -3,8 +3,6 @@ import { useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, Hash, Globe, User } from 'lucide-react'
 import { useEvents } from '../hooks/useEvents'
-import { useQueryContext } from '../context/QueryContext'
-import QueryBar from '../components/QueryBar'
 import FieldValue from '../components/FieldValue'
 import { api, type Event } from '../lib/api'
 import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
@@ -42,7 +40,6 @@ const columns = [
 export default function SearchPage() {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
-  const { query: luceneQuery } = useQueryContext()
   const [query, setQuery] = useState('')
   const [activeQuery, setActiveQuery] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -54,8 +51,7 @@ export default function SearchPage() {
     uploadId,
     search: activeQuery,
     finding: findingFilter,
-    query: luceneQuery,
-    enabled: activeQuery.length > 0 || !!luceneQuery,
+    enabled: activeQuery.length > 0,
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -74,8 +70,6 @@ export default function SearchPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-foreground">Search</h1>
-
-      <QueryBar />
 
       <form onSubmit={handleSearch} className="flex items-center gap-2">
         <div className="relative flex-1 max-w-2xl">
