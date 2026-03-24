@@ -65,6 +65,13 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 
+	if version < 3 {
+		log.Println("Applying migration 003_remote_access_results.sql")
+		if _, err := pool.Exec(ctx, Migration003); err != nil {
+			return fmt.Errorf("apply migration 003: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -141,6 +148,27 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 
 INSERT INTO schema_version (version) VALUES (2) ON CONFLICT DO NOTHING;
+`
+
+const Migration003 = `
+CREATE TABLE IF NOT EXISTS remote_access_results (
+    id           BIGSERIAL PRIMARY KEY,
+    upload_id    UUID NOT NULL REFERENCES uploads(id) ON DELETE CASCADE,
+    site_id      UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    tool_name    TEXT NOT NULL,
+    category     TEXT NOT NULL,
+    event_count  BIGINT NOT NULL DEFAULT 0,
+    event_types  TEXT[] NOT NULL DEFAULT '{}',
+    first_seen   TIMESTAMPTZ,
+    last_seen    TIMESTAMPTZ,
+    search_terms TEXT[] NOT NULL DEFAULT '{}',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ra_results_upload ON remote_access_results(upload_id);
+CREATE INDEX IF NOT EXISTS idx_ra_results_site ON remote_access_results(site_id);
+
+INSERT INTO schema_version (version) VALUES (3) ON CONFLICT DO NOTHING;
 `
 
 func envOr(key, fallback string) string {

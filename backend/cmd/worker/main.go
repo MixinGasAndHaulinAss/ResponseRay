@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/responseray/responseray/internal/db"
+	"github.com/responseray/responseray/internal/handlers"
 	"github.com/responseray/responseray/internal/ingest"
 )
 
@@ -94,6 +95,18 @@ func processNext(ctx context.Context, pool *pgxpool.Pool, ing *ingest.Ingester) 
 	}
 
 	log.Printf("Ingested %d events for upload %s (host: %s)", count, uploadID, hostName)
+
+	log.Printf("Running remote access detection for upload %s...", uploadID)
+	raResults, raErr := handlers.DetectRemoteAccess(ctx, pool, siteID, uploadID)
+	if raErr != nil {
+		log.Printf("Warning: remote access detection failed: %v", raErr)
+	} else {
+		if err := handlers.StoreRemoteAccessResults(ctx, pool, siteID, uploadID, raResults); err != nil {
+			log.Printf("Warning: failed to store remote access results: %v", err)
+		} else {
+			log.Printf("Detected %d remote access tools for upload %s", len(raResults), uploadID)
+		}
+	}
 
 	_, err = pool.Exec(ctx,
 		`UPDATE uploads SET status = 'complete', event_count = $2, host_name = $3, updated_at = NOW() WHERE id = $1`,
