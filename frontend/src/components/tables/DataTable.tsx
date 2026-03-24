@@ -120,7 +120,11 @@ export default function DataTable<T extends { id: number }>({
                 table.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => onRowClick?.(row.original)}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement
+                      if (target.closest('[data-field-value="true"]')) return
+                      onRowClick?.(row.original)
+                    }}
                     className={cn(
                       'hover:bg-gray-800/30 transition-colors',
                       onRowClick && 'cursor-pointer',
