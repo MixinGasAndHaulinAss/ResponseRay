@@ -160,6 +160,13 @@ export const api = {
     request<void>(`/sites/${siteId}/events/${eventId}/finding`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
   bulkUpdateFinding: (siteId: string, data: { event_ids: number[]; finding: string | null; finding_note: string | null }) =>
     request<void>(`/sites/${siteId}/events/findings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+
+  // API Keys
+  listApiKeys: () => request<ApiKey[]>('/keys/'),
+  createApiKey: (name: string) =>
+    request<ApiKeyCreateResponse>('/keys/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }),
+  deleteApiKey: (keyId: string) =>
+    request<void>(`/keys/${keyId}`, { method: 'DELETE' }),
 }
 
 // Types
@@ -264,4 +271,17 @@ export interface DashboardStats {
   suspicious_count: number
   finding_counts: Record<string, number>
   uploads: Upload[]
+}
+
+export interface ApiKey {
+  id: string
+  name: string
+  prefix: string
+  created_at: string
+  last_used: string | null
+  is_active: boolean
+}
+
+export interface ApiKeyCreateResponse extends ApiKey {
+  key: string
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Plus, Trash2, FolderOpen } from 'lucide-react'
+import { Shield, Plus, Trash2, FolderOpen, Key } from 'lucide-react'
 import { api, type SiteWithCounts } from '../lib/api'
 import { formatNumber, formatDateTimeShort } from '../lib/utils'
 
@@ -44,13 +44,22 @@ export default function Sites() {
               <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-white">v{__APP_VERSION__}</span></p>
             </div>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-500 text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            New Incident
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/api-keys')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white text-sm font-medium border border-gray-700"
+            >
+              <Key className="w-4 h-4" />
+              API Keys
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-500 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              New Incident
+            </button>
+          </div>
         </div>
 
         {showCreate && (

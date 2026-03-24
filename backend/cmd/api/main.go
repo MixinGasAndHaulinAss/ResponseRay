@@ -50,6 +50,7 @@ func main() {
 	fsH := &handlers.FilesystemHandler{DB: pool, ArtifactsDir: artifactsDir}
 	logonH := &handlers.LogonHandler{DB: pool}
 	raH := &handlers.RemoteAccessHandler{DB: pool}
+	keyH := &handlers.APIKeyHandler{DB: pool}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -61,10 +62,16 @@ func main() {
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	}))
-	r.Use(auth.Middleware)
+	r.Use(auth.Middleware(pool))
 
 	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	r.Route("/api/keys", func(r chi.Router) {
+		r.Get("/", keyH.List)
+		r.Post("/", keyH.Create)
+		r.Delete("/{keyID}", keyH.Delete)
 	})
 
 	r.Route("/api/sites", func(r chi.Router) {

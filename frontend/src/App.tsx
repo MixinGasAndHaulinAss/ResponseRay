@@ -23,6 +23,7 @@ import Timeline from './pages/Timeline'
 import SearchPage from './pages/SearchPage'
 import Findings from './pages/Findings'
 import RemoteAccess from './pages/RemoteAccess'
+import ApiKeys from './pages/ApiKeys'
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null)
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Sites />} />
+      <Route path="/api-keys" element={<ApiKeys />} />
       <Route path="/sites/:siteId" element={<Layout />}>
         <Route index element={<Captures />} />
         <Route path="captures/:uploadId">

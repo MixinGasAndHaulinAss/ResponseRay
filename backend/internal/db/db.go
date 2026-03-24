@@ -58,6 +58,13 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 
+	if version < 2 {
+		log.Println("Applying migration 002_api_keys.sql")
+		if _, err := pool.Exec(ctx, Migration002); err != nil {
+			return fmt.Errorf("apply migration 002: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -120,6 +127,20 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 INSERT INTO schema_version (version) VALUES (1) ON CONFLICT DO NOTHING;
+`
+
+const Migration002 = `
+CREATE TABLE IF NOT EXISTS api_keys (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL,
+    key_hash    TEXT NOT NULL,
+    prefix      TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used   TIMESTAMPTZ,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+INSERT INTO schema_version (version) VALUES (2) ON CONFLICT DO NOTHING;
 `
 
 func envOr(key, fallback string) string {
