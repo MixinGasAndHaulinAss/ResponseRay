@@ -70,6 +70,8 @@ type EventQuery struct {
 
 	OnlyNotable    bool `json:"only_notable,omitempty"`
 	OnlySuspicious bool `json:"only_suspicious,omitempty"`
+
+	LuceneQuery string `json:"q,omitempty"`
 }
 
 type PagedResult struct {

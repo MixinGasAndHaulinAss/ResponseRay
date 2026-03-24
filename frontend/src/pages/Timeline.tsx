@@ -4,6 +4,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Flag, Search, Calendar, X } from 'lucide-react'
 import { api, type Event } from '../lib/api'
 import { useEvents } from '../hooks/useEvents'
+import { useQueryContext } from '../context/QueryContext'
+import QueryBar from '../components/QueryBar'
+import FieldValue from '../components/FieldValue'
 import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
@@ -13,6 +16,7 @@ import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
 export default function Timeline() {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
+  const { query: luceneQuery } = useQueryContext()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -34,6 +38,7 @@ export default function Timeline() {
     sortDir,
     dateFrom,
     dateTo,
+    query: luceneQuery,
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -100,23 +105,47 @@ export default function Timeline() {
     },
     {
       id: 'datetime', header: 'Timestamp',
-      cell: ({ row }: any) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>,
+      cell: ({ row }: any) => (
+        <FieldValue field="datetime" value={row.original.datetime}>
+          <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>
+        </FieldValue>
+      ),
     },
     {
       id: 'event_type', header: 'Type',
       cell: ({ row }: any) => (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
-          {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
-        </span>
+        <FieldValue field="event_type" value={row.original.event_type}>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
+            {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
+          </span>
+        </FieldValue>
       ),
     },
-    { id: 'source', header: 'Source', cell: ({ row }: any) => row.original.source_short || '-' },
-    { id: 'ts_desc', header: 'Timestamp Type', cell: ({ row }: any) => row.original.timestamp_desc || '-' },
+    {
+      id: 'source', header: 'Source',
+      cell: ({ row }: any) => {
+        const v = row.original.source_short || ''
+        return v ? <FieldValue field="source_short" value={v}>{v}</FieldValue> : '-'
+      },
+    },
+    {
+      id: 'ts_desc', header: 'Timestamp Type',
+      cell: ({ row }: any) => {
+        const v = row.original.timestamp_desc || ''
+        return v ? <FieldValue field="timestamp_desc" value={v}>{v}</FieldValue> : '-'
+      },
+    },
     {
       id: 'message', header: 'Message',
       cell: ({ row }: any) => <span className="max-w-2xl truncate block">{row.original.message || '-'}</span>,
     },
-    { id: 'host', header: 'Host', cell: ({ row }: any) => row.original.host_name || '-' },
+    {
+      id: 'host', header: 'Host',
+      cell: ({ row }: any) => {
+        const v = row.original.host_name || ''
+        return v ? <FieldValue field="host_name" value={v}>{v}</FieldValue> : '-'
+      },
+    },
     {
       id: 'actions', header: '', size: 40,
       cell: ({ row }: any) => (
@@ -157,6 +186,8 @@ export default function Timeline() {
           </form>
         </div>
       </div>
+
+      <QueryBar />
 
       {/* Jump to Date/Time */}
       <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">

@@ -5,6 +5,9 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { ArrowLeft, ChevronRight, Flag, Monitor, Search, ShieldAlert, ShieldCheck, User } from 'lucide-react'
 import { api, type Event, type LogonUserSummary } from '../lib/api'
 import { useEvents } from '../hooks/useEvents'
+import { useQueryContext } from '../context/QueryContext'
+import QueryBar from '../components/QueryBar'
+import FieldValue from '../components/FieldValue'
 import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
@@ -168,20 +171,25 @@ function UserSummaryList({
 const logonColumns: ColumnDef<Event, unknown>[] = [
   { id: 'logonType', header: 'Type', cell: ({ row }) => {
     const t = String(row.original.data.LogonType || '')
-    return t ? `${t} (${LOGON_TYPE_LABELS[t] || '?'})` : '-'
+    if (!t) return '-'
+    return <FieldValue field="LogonType" value={t}>{t} ({LOGON_TYPE_LABELS[t] || '?'})</FieldValue>
   }},
-  { id: 'ip', header: 'Source IP', cell: ({ row }) =>
-    String(row.original.data.IpAddress || row.original.data.Address || '-')
-  },
-  { id: 'domain', header: 'Domain', cell: ({ row }) =>
-    String(row.original.data.TargetDomainName || '-')
-  },
-  { id: 'auth', header: 'Auth Package', cell: ({ row }) =>
-    String(row.original.data.AuthenticationPackageName || row.original.data.PackageName || '-')
-  },
-  { id: 'eid', header: 'Event ID', cell: ({ row }) =>
-    String(row.original.data.event_identifier || '-')
-  },
+  { id: 'ip', header: 'Source IP', cell: ({ row }) => {
+    const v = String(row.original.data.IpAddress || row.original.data.Address || '')
+    return v ? <FieldValue field="IpAddress" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'domain', header: 'Domain', cell: ({ row }) => {
+    const v = String(row.original.data.TargetDomainName || '')
+    return v ? <FieldValue field="TargetDomainName" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'auth', header: 'Auth Package', cell: ({ row }) => {
+    const v = String(row.original.data.AuthenticationPackageName || row.original.data.PackageName || '')
+    return v ? <FieldValue field="AuthenticationPackageName" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'eid', header: 'Event ID', cell: ({ row }) => {
+    const v = String(row.original.data.event_identifier || '')
+    return v ? <FieldValue field="event_identifier" value={v}>{v}</FieldValue> : '-'
+  }},
   { id: 'message', header: 'Message', cell: ({ row }) =>
     String(row.original.message || '-')
   },
@@ -205,6 +213,7 @@ function UserLogonDetail({
 }) {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
+  const { query: luceneQuery } = useQueryContext()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [activeTab, setActiveTab] = useState(0)
@@ -242,6 +251,7 @@ function UserLogonDetail({
     dataFilters: userFilter,
     sortField,
     sortDir,
+    query: luceneQuery,
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -388,6 +398,8 @@ function UserLogonDetail({
           <span className="text-gray-200 font-mono">{formatDateTime(user.last_seen)}</span>
         </div>
       </div>
+
+      <QueryBar />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-800">

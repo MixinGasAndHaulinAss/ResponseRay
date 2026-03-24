@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, Hash, Globe, User } from 'lucide-react'
 import { useEvents } from '../hooks/useEvents'
+import { useQueryContext } from '../context/QueryContext'
+import QueryBar from '../components/QueryBar'
+import FieldValue from '../components/FieldValue'
 import { api, type Event } from '../lib/api'
 import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
 import DataTable from '../components/tables/DataTable'
@@ -15,13 +18,22 @@ const columns = [
     id: 'indicators', header: '', size: 60,
     cell: ({ row }: any) => <FindingBadge finding={row.original.finding} isSuspicious={row.original.is_suspicious} ctSignificance={row.original.ct_significance} small />,
   },
-  { id: 'datetime', header: 'Timestamp', cell: ({ row }: any) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span> },
-  { id: 'event_type', header: 'Type', cell: ({ row }: any) => (
-    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
-      {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
-    </span>
+  { id: 'datetime', header: 'Timestamp', cell: ({ row }: any) => (
+    <FieldValue field="datetime" value={row.original.datetime}>
+      <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>
+    </FieldValue>
   )},
-  { id: 'source', header: 'Source', cell: ({ row }: any) => row.original.source_short || '-' },
+  { id: 'event_type', header: 'Type', cell: ({ row }: any) => (
+    <FieldValue field="event_type" value={row.original.event_type}>
+      <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
+        {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
+      </span>
+    </FieldValue>
+  )},
+  { id: 'source', header: 'Source', cell: ({ row }: any) => {
+    const v = row.original.source_short || ''
+    return v ? <FieldValue field="source_short" value={v}>{v}</FieldValue> : '-'
+  }},
   { id: 'message', header: 'Message', cell: ({ row }: any) => (
     <span className="max-w-2xl truncate block">{row.original.message || '-'}</span>
   )},
@@ -30,6 +42,7 @@ const columns = [
 export default function SearchPage() {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
+  const { query: luceneQuery } = useQueryContext()
   const [query, setQuery] = useState('')
   const [activeQuery, setActiveQuery] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -41,7 +54,8 @@ export default function SearchPage() {
     uploadId,
     search: activeQuery,
     finding: findingFilter,
-    enabled: activeQuery.length > 0,
+    query: luceneQuery,
+    enabled: activeQuery.length > 0 || !!luceneQuery,
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -60,6 +74,8 @@ export default function SearchPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-foreground">Search</h1>
+
+      <QueryBar />
 
       <form onSubmit={handleSearch} className="flex items-center gap-2">
         <div className="relative flex-1 max-w-2xl">

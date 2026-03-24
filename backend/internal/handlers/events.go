@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/responseray/responseray/internal/lucene"
 	"github.com/responseray/responseray/internal/models"
 )
 
@@ -59,6 +60,8 @@ func (h *EventHandler) Query(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("suspicious") == "true" {
 		q.OnlySuspicious = true
 	}
+
+	q.LuceneQuery = r.URL.Query().Get("q")
 
 	// Parse data filters from query params prefixed with "data."
 	q.DataFilters = make(map[string]string)
@@ -157,6 +160,22 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 		conditions = append(conditions, fmt.Sprintf("data->>%s = $%d", quoteIdent(key), argIdx))
 		args = append(args, val)
 		argIdx++
+	}
+
+	if q.LuceneQuery != "" {
+		ast, err := lucene.Parse(q.LuceneQuery)
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid query syntax: %w", err)
+		}
+		if ast != nil {
+			result, err := lucene.ToSQL(ast, argIdx)
+			if err != nil {
+				return nil, 0, fmt.Errorf("query compilation error: %w", err)
+			}
+			conditions = append(conditions, result.Clause)
+			args = append(args, result.Args...)
+			argIdx += len(result.Args)
+		}
 	}
 
 	where := strings.Join(conditions, " AND ")

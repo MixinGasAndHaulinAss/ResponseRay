@@ -5,6 +5,9 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { Flag, Search } from 'lucide-react'
 import { api, type Event } from '../lib/api'
 import { useEvents } from '../hooks/useEvents'
+import { useQueryContext } from '../context/QueryContext'
+import QueryBar from '../components/QueryBar'
+import FieldValue from '../components/FieldValue'
 import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
@@ -25,6 +28,7 @@ const SORTABLE_COLUMNS = new Set(['datetime'])
 export default function EventView({ title, eventTypes, columns, tabs, defaultSort, defaultDir }: EventViewProps) {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
+  const { query: luceneQuery } = useQueryContext()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [activeTab, setActiveTab] = useState(0)
@@ -58,6 +62,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
     dataFilters: activeDataFilter,
     sortField,
     sortDir,
+    query: luceneQuery,
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -103,7 +108,11 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
     {
       id: 'datetime',
       header: 'Timestamp',
-      cell: ({ row }) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>,
+      cell: ({ row }) => (
+        <FieldValue field="datetime" value={row.original.datetime}>
+          <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>
+        </FieldValue>
+      ),
     },
     ...columns,
     {
@@ -149,6 +158,8 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
           </form>
         </div>
       </div>
+
+      <QueryBar />
 
       {tabs && (
         <div className="flex gap-1 border-b border-gray-800">

@@ -1,10 +1,23 @@
 import EventView from './EventView'
+import FieldValue from '../components/FieldValue'
 
 const columns = [
-  { id: 'channel', header: 'Channel', cell: ({ row }: any) => row.original.data.channel || '-' },
-  { id: 'eid', header: 'Event ID', cell: ({ row }: any) => row.original.data.event_identifier || '-' },
-  { id: 'source', header: 'Source', cell: ({ row }: any) => row.original.data.source_name || '-' },
-  { id: 'computer', header: 'Computer', cell: ({ row }: any) => row.original.data.computer_name || '-' },
+  { id: 'channel', header: 'Channel', cell: ({ row }: any) => {
+    const v = String(row.original.data.channel || '')
+    return v ? <FieldValue field="channel" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'eid', header: 'Event ID', cell: ({ row }: any) => {
+    const v = String(row.original.data.event_identifier || '')
+    return v ? <FieldValue field="event_identifier" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'source', header: 'Source', cell: ({ row }: any) => {
+    const v = String(row.original.data.source_name || '')
+    return v ? <FieldValue field="source_name" value={v}>{v}</FieldValue> : '-'
+  }},
+  { id: 'computer', header: 'Computer', cell: ({ row }: any) => {
+    const v = String(row.original.data.computer_name || '')
+    return v ? <FieldValue field="computer_name" value={v}>{v}</FieldValue> : '-'
+  }},
   { id: 'message', header: 'Message', cell: ({ row }: any) => (
     <span className="max-w-lg truncate block">{row.original.message || '-'}</span>
   )},

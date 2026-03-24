@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { api } from './lib/api'
+import { QueryProvider } from './context/QueryContext'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Sites from './pages/Sites'
@@ -50,7 +51,7 @@ export default function App() {
       <Route path="/api-keys" element={<ApiKeys />} />
       <Route path="/sites/:siteId" element={<Layout />}>
         <Route index element={<Captures />} />
-        <Route path="captures/:uploadId">
+        <Route path="captures/:uploadId" element={<QueryProvider><Outlet /></QueryProvider>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="accounts" element={<Accounts />} />

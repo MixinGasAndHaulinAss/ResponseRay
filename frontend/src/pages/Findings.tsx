@@ -5,6 +5,9 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { ArrowLeft, Flag, Search } from 'lucide-react'
 import { api, type Event } from '../lib/api'
 import { useEvents } from '../hooks/useEvents'
+import { useQueryContext } from '../context/QueryContext'
+import QueryBar from '../components/QueryBar'
+import FieldValue from '../components/FieldValue'
 import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
@@ -27,6 +30,7 @@ export default function Findings() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { query: luceneQuery } = useQueryContext()
 
   const activeFilter = searchParams.get('filter') || 'notable'
   const [search, setSearch] = useState('')
@@ -54,6 +58,7 @@ export default function Findings() {
       search,
       sortField,
       sortDir,
+      query: luceneQuery,
     }
     switch (activeFilter) {
       case 'notable':
@@ -76,7 +81,7 @@ export default function Findings() {
         break
     }
     return opts
-  }, [siteId, uploadId, search, activeFilter, sortField, sortDir])
+  }, [siteId, uploadId, search, activeFilter, sortField, sortDir, luceneQuery])
 
   const { events, total, offset, setOffset, limit, isLoading } = useEvents(eventsOptions)
 
@@ -125,18 +130,30 @@ export default function Findings() {
     },
     {
       id: 'datetime', header: 'Timestamp',
-      cell: ({ row }) => <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>,
+      cell: ({ row }) => (
+        <FieldValue field="datetime" value={row.original.datetime}>
+          <span className="text-xs font-mono">{formatDateTime(row.original.datetime)}</span>
+        </FieldValue>
+      ),
     },
     {
       id: 'event_type', header: 'Type',
       cell: ({ row }) => (
-        <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
-          {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
-        </span>
+        <FieldValue field="event_type" value={row.original.event_type}>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">
+            {EVENT_TYPE_LABELS[row.original.event_type] || row.original.event_type}
+          </span>
+        </FieldValue>
       ),
     },
-    { id: 'source', header: 'Source', cell: ({ row }) => row.original.source_short || '-' },
-    { id: 'host', header: 'Host', cell: ({ row }) => row.original.host_name || '-' },
+    { id: 'source', header: 'Source', cell: ({ row }) => {
+      const v = row.original.source_short || ''
+      return v ? <FieldValue field="source_short" value={v}>{v}</FieldValue> : '-'
+    }},
+    { id: 'host', header: 'Host', cell: ({ row }) => {
+      const v = row.original.host_name || ''
+      return v ? <FieldValue field="host_name" value={v}>{v}</FieldValue> : '-'
+    }},
     {
       id: 'message', header: 'Message',
       cell: ({ row }) => <span className="max-w-2xl truncate block">{row.original.message || '-'}</span>,
@@ -190,6 +207,8 @@ export default function Findings() {
           </form>
         </div>
       </div>
+
+      <QueryBar />
 
       <div className="flex gap-1 border-b border-gray-800">
         {FILTER_OPTIONS.map(f => (

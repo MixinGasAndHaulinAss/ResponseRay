@@ -3,6 +3,7 @@ import { X, Flag, Copy, Check } from 'lucide-react'
 import { Event } from '../lib/api'
 import { formatDateTime, EVENT_TYPE_LABELS } from '../lib/utils'
 import FindingBadge from './findings/FindingBadge'
+import FieldValue from './FieldValue'
 
 interface Props {
   event: Event
@@ -64,12 +65,12 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Timestamp" value={formatDateTime(event.datetime)} />
-          <Field label="Type" value={EVENT_TYPE_LABELS[event.event_type] || event.event_type} />
-          <Field label="Data Type" value={event.data_type} />
-          <Field label="Source" value={event.source_short} />
-          <Field label="Host" value={event.host_name} />
-          <Field label="Timestamp Desc" value={event.timestamp_desc} />
+          <Field label="Timestamp" value={formatDateTime(event.datetime)} field="datetime" rawValue={event.datetime} />
+          <Field label="Type" value={EVENT_TYPE_LABELS[event.event_type] || event.event_type} field="event_type" rawValue={event.event_type} />
+          <Field label="Data Type" value={event.data_type} field="data_type" rawValue={event.data_type} />
+          <Field label="Source" value={event.source_short} field="source_short" rawValue={event.source_short} />
+          <Field label="Host" value={event.host_name} field="host_name" rawValue={event.host_name} />
+          <Field label="Timestamp Desc" value={event.timestamp_desc} field="timestamp_desc" rawValue={event.timestamp_desc} />
         </div>
 
         {event.message && (
@@ -100,7 +101,13 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
               return (
                 <div key={key} className="flex gap-3 px-3 py-2 text-sm group">
                   <span className="text-gray-500 font-mono text-xs min-w-[160px] flex-shrink-0 pt-0.5">{key}</span>
-                  <span className="text-gray-200 break-all flex-1">{displayValue}</span>
+                  <span className="text-gray-200 break-all flex-1">
+                    {displayValue && displayValue !== '-' ? (
+                      <FieldValue field={key} value={displayValue}>{displayValue}</FieldValue>
+                    ) : (
+                      displayValue
+                    )}
+                  </span>
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity self-start pt-0.5">
                     <CopyButton value={displayValue} />
                   </span>
@@ -114,13 +121,20 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
   )
 }
 
-function Field({ label, value }: { label: string; value?: string | null }) {
+function Field({ label, value, field, rawValue }: { label: string; value?: string | null; field?: string; rawValue?: string | null }) {
   const displayValue = value || '-'
+  const filterValue = rawValue || value || ''
   return (
     <div className="group flex items-start justify-between gap-1">
       <div className="min-w-0">
         <label className="text-xs font-medium text-gray-500 uppercase">{label}</label>
-        <p className="mt-0.5 text-sm text-gray-200 truncate">{displayValue}</p>
+        <p className="mt-0.5 text-sm text-gray-200 truncate">
+          {field && filterValue && filterValue !== '-' ? (
+            <FieldValue field={field} value={filterValue}>{displayValue}</FieldValue>
+          ) : (
+            displayValue
+          )}
+        </p>
       </div>
       <span className="opacity-0 group-hover:opacity-100 transition-opacity mt-3.5">
         <CopyButton value={displayValue} />
