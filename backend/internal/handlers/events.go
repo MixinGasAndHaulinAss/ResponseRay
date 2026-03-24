@@ -113,10 +113,10 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 
 	if q.Search != "" {
 		conditions = append(conditions, fmt.Sprintf(
-			"(to_tsvector('english', COALESCE(message, '')) @@ plainto_tsquery('english', $%d) OR message ILIKE $%d)",
-			argIdx, argIdx+1))
-		args = append(args, q.Search, "%"+q.Search+"%")
-		argIdx += 2
+			"(to_tsvector('english', COALESCE(message, '')) @@ plainto_tsquery('english', $%d) OR message ILIKE $%d OR data::text ILIKE $%d)",
+			argIdx, argIdx+1, argIdx+2))
+		args = append(args, q.Search, "%"+q.Search+"%", "%"+q.Search+"%")
+		argIdx += 3
 	}
 
 	if q.Finding != "" {
