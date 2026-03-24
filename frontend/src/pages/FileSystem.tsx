@@ -66,7 +66,7 @@ export default function FileSystem() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">File System</h1>
+        <h1 className="text-xl font-bold text-foreground">File System</h1>
         <form onSubmit={handleSearch} className="flex items-center gap-1">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -74,7 +74,7 @@ export default function FileSystem() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Filter current directory..."
-              className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-72 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-72 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </form>
@@ -94,7 +94,7 @@ export default function FileSystem() {
             <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
             <button
               onClick={() => navigateTo('/' + pathSegments.slice(0, i + 1).join('/') + '/')}
-              className={`text-sm ${i === pathSegments.length - 1 ? 'text-white font-medium' : 'text-brand-400 hover:text-brand-300'}`}
+              className={`text-sm ${i === pathSegments.length - 1 ? 'text-foreground font-medium' : 'text-brand-400 hover:text-brand-300'}`}
             >
               {segment}
             </button>

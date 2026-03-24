@@ -113,7 +113,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
       cell: ({ row }) => (
         <button
           onClick={(e) => { e.stopPropagation(); setFindingEvent(row.original) }}
-          className="p-1 text-gray-600 hover:text-white"
+          className="p-1 text-gray-600 hover:text-foreground"
           title="Mark Finding"
         >
           <Flag className="w-3.5 h-3.5" />
@@ -125,7 +125,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">{title}</h1>
+        <h1 className="text-xl font-bold text-foreground">{title}</h1>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-1 mr-2">
@@ -143,7 +143,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search..."
-                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </form>

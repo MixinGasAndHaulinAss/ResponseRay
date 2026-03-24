@@ -54,7 +54,7 @@ export default function Captures() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Captures</h1>
+        <h1 className="text-xl font-bold text-foreground">Captures</h1>
         <div className="flex items-center gap-3">
           {uploadProgress !== null && (
             <div className="flex items-center gap-2 text-sm text-brand-400">
@@ -102,7 +102,7 @@ export default function Captures() {
                       <HardDrive className={`w-6 h-6 ${cfg.color}`} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-white truncate">
+                      <h3 className="text-base font-semibold text-foreground truncate">
                         {upload.filename}
                       </h3>
                       <div className="flex items-center gap-4 mt-1 text-sm text-gray-400">

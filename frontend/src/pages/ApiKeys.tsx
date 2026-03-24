@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Key, Plus, Trash2, Copy, Check, ArrowLeft } from 'lucide-react'
+import { Key, Plus, Trash2, Copy, Check, ArrowLeft, Sun, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api, type ApiKey } from '../lib/api'
 import { formatDateTimeShort } from '../lib/utils'
+import { useTheme } from '../hooks/useTheme'
 
 export default function ApiKeys() {
   const navigate = useNavigate()
@@ -12,6 +13,7 @@ export default function ApiKeys() {
   const [name, setName] = useState('')
   const [newKey, setNewKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const { isDark, toggle: toggleTheme } = useTheme()
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ['api-keys'],
@@ -48,17 +50,24 @@ export default function ApiKeys() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="p-1.5 text-gray-400 hover:text-white transition-colors"
+              className="p-1.5 text-gray-400 hover:text-foreground transition-colors"
               title="Back to incidents"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <Key className="w-7 h-7 text-brand-500" />
             <div>
-              <h1 className="text-2xl font-bold text-white">API Keys</h1>
+              <h1 className="text-2xl font-bold text-foreground">API Keys</h1>
               <p className="text-sm text-gray-400">Manage keys for external API access</p>
             </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="p-2 text-gray-400 hover:text-foreground transition-colors rounded-lg hover:bg-gray-800"
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <button
             onClick={() => { setShowCreate(true); setNewKey(null) }}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-500 text-sm font-medium"
@@ -76,7 +85,7 @@ export default function ApiKeys() {
               Copy this key now. It will not be shown again.
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-white font-mono break-all select-all">
+              <code className="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm text-foreground font-mono break-all select-all">
                 {newKey}
               </code>
               <button
@@ -96,7 +105,7 @@ export default function ApiKeys() {
         {/* Create form */}
         {showCreate && (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Create API Key</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Create API Key</h2>
             <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }} className="space-y-3">
               <input
                 value={name}
@@ -104,13 +113,13 @@ export default function ApiKeys() {
                 placeholder="Key name (e.g., SOAR Integration, Export Script)"
                 autoFocus
                 required
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-foreground placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               <div className="flex gap-2">
                 <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-500 text-sm">
                   {createMutation.isPending ? 'Creating...' : 'Create'}
                 </button>
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-gray-400 hover:text-white text-sm">
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-gray-400 hover:text-foreground text-sm">
                   Cancel
                 </button>
               </div>
@@ -140,7 +149,7 @@ export default function ApiKeys() {
                 key={k.id}
                 className="grid grid-cols-[1fr_140px_160px_160px_50px] gap-2 px-4 py-3 border-b border-gray-800/50 items-center group"
               >
-                <span className="text-sm text-white truncate">{k.name}</span>
+                <span className="text-sm text-foreground truncate">{k.name}</span>
                 <span className="text-sm text-gray-400 font-mono">{k.prefix}...</span>
                 <span className="text-xs text-gray-500">{formatDateTimeShort(k.created_at)}</span>
                 <span className="text-xs text-gray-500">

@@ -59,7 +59,7 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-white">Search</h1>
+      <h1 className="text-xl font-bold text-foreground">Search</h1>
 
       <form onSubmit={handleSearch} className="flex items-center gap-2">
         <div className="relative flex-1 max-w-2xl">
@@ -69,7 +69,7 @@ export default function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search messages, IPs, hashes, users, file paths..."
             autoFocus
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg text-foreground placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
         <button type="submit" className="px-6 py-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-500 font-medium">
@@ -87,7 +87,7 @@ export default function SearchPage() {
               'px-2.5 py-1 rounded text-xs font-medium transition-colors',
               findingFilter === f
                 ? 'bg-brand-500/20 text-brand-400'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                : 'text-gray-400 hover:text-foreground hover:bg-gray-800'
             )}
           >
             {f === '' ? 'All' : f === 'none' ? 'Unmarked' : f.charAt(0).toUpperCase() + f.slice(1)}

@@ -3,9 +3,10 @@ import {
   LayoutDashboard, Users, LogIn, Cpu, Terminal, Server,
   Shield, Network, Globe, ShieldAlert, BarChart3, Monitor,
   ScrollText, FolderTree, Clock, Search, Zap, Radio,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Sun, Moon
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useTheme } from '../../hooks/useTheme'
 
 const navItems = [
   { to: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,6 +35,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { siteId, uploadId } = useParams()
+  const { isDark, toggle: toggleTheme } = useTheme()
 
   return (
     <aside
@@ -45,7 +47,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className={cn('border-b border-gray-800 flex items-center', collapsed ? 'px-2 py-4 justify-center' : 'p-4')}>
         <NavLink to="/" className="flex items-center gap-2 min-w-0">
           <Shield className="w-6 h-6 text-brand-500 shrink-0" />
-          {!collapsed && <span className="text-lg font-bold text-white truncate">ResponseRay</span>}
+          {!collapsed && <span className="text-lg font-bold text-foreground truncate">ResponseRay</span>}
         </NavLink>
       </div>
 
@@ -86,10 +88,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       <div className="border-t border-gray-800">
         <button
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className={cn(
+            'w-full flex items-center text-gray-500 hover:text-gray-200 transition-colors',
+            collapsed ? 'justify-center py-2.5' : 'gap-2 px-4 py-2.5'
+          )}
+        >
+          {isDark
+            ? <>{<Sun className="w-4 h-4" />}{!collapsed && <span className="text-xs">Light Mode</span>}</>
+            : <>{<Moon className="w-4 h-4" />}{!collapsed && <span className="text-xs">Dark Mode</span>}</>
+          }
+        </button>
+        <button
           onClick={onToggle}
           className={cn(
             'w-full flex items-center text-gray-500 hover:text-gray-200 transition-colors',
-            collapsed ? 'justify-center py-3' : 'gap-2 px-4 py-3'
+            collapsed ? 'justify-center py-2.5' : 'gap-2 px-4 py-2.5'
           )}
         >
           {collapsed

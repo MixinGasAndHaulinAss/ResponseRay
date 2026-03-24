@@ -63,7 +63,7 @@ function UserSummaryList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Logons</h1>
+        <h1 className="text-xl font-bold text-foreground">Logons</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowMachineAccounts(!showMachineAccounts)}
@@ -83,7 +83,7 @@ function UserSummaryList({
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="Filter users..."
-              className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </div>
@@ -295,7 +295,7 @@ function UserLogonDetail({
       cell: ({ row }) => (
         <button
           onClick={(e) => { e.stopPropagation(); setFindingEvent(row.original) }}
-          className="p-1 text-gray-600 hover:text-white"
+          className="p-1 text-gray-600 hover:text-foreground"
         >
           <Flag className="w-3.5 h-3.5" />
         </button>
@@ -309,13 +309,13 @@ function UserLogonDetail({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-foreground bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <User className="w-5 h-5 text-brand-400" />
               {user.username}
             </h1>
@@ -339,7 +339,7 @@ function UserLogonDetail({
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search logons..."
-                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </form>
@@ -349,7 +349,7 @@ function UserLogonDetail({
       {/* User stats bar */}
       <div className="grid grid-cols-5 gap-3">
         <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-center">
-          <div className="text-lg font-bold text-white">{formatNumber(user.total_events)}</div>
+          <div className="text-lg font-bold text-foreground">{formatNumber(user.total_events)}</div>
           <div className="text-xs text-gray-400">Total Events</div>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-center">

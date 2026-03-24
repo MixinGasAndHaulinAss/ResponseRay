@@ -19,8 +19,8 @@ export default function FindingDialog({ currentFinding, currentNote, onSave, onC
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-96 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Mark Finding</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <h3 className="text-lg font-semibold text-foreground">Mark Finding</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -34,7 +34,7 @@ export default function FindingDialog({ currentFinding, currentNote, onSave, onC
                 'flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-colors capitalize',
                 finding === f
                   ? FINDING_COLORS[f]
-                  : 'border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                  : 'border-gray-700 text-gray-400 hover:text-foreground hover:border-gray-600'
               )}
             >
               {f}
@@ -51,7 +51,7 @@ export default function FindingDialog({ currentFinding, currentNote, onSave, onC
         />
 
         <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-foreground">
             Cancel
           </button>
           <button

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Plus, Trash2, FolderOpen, Key } from 'lucide-react'
+import { Shield, Plus, Trash2, FolderOpen, Key, Sun, Moon } from 'lucide-react'
 import { api, type SiteWithCounts } from '../lib/api'
 import { formatNumber, formatDateTimeShort } from '../lib/utils'
+import { useTheme } from '../hooks/useTheme'
 
 export default function Sites() {
   const navigate = useNavigate()
@@ -11,6 +12,7 @@ export default function Sites() {
   const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const { isDark, toggle: toggleTheme } = useTheme()
 
   const { data: sites = [], isLoading } = useQuery({
     queryKey: ['sites'],
@@ -40,14 +42,21 @@ export default function Sites() {
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-brand-500" />
             <div>
-              <h1 className="text-2xl font-bold text-white">ResponseRay</h1>
-              <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-white">v{__APP_VERSION__}</span></p>
+              <h1 className="text-2xl font-bold text-foreground">ResponseRay</h1>
+              <p className="text-sm text-gray-400">DFIR Investigation Platform <span className="text-foreground">v{__APP_VERSION__}</span></p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleTheme}
+              className="p-2 text-gray-400 hover:text-foreground transition-colors rounded-lg hover:bg-gray-800"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
               onClick={() => navigate('/api-keys')}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white text-sm font-medium border border-gray-700"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 hover:text-foreground text-sm font-medium border border-gray-700"
             >
               <Key className="w-4 h-4" />
               API Keys
@@ -64,7 +73,7 @@ export default function Sites() {
 
         {showCreate && (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Create Incident</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Create Incident</h2>
             <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }} className="space-y-3">
               <input
                 value={name}
@@ -72,20 +81,20 @@ export default function Sites() {
                 placeholder="Incident name (e.g., Workstation-042 Compromise)"
                 autoFocus
                 required
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-foreground placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-foreground placeholder-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               <div className="flex gap-2">
                 <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-500 text-sm">
                   Create
                 </button>
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-gray-400 hover:text-white text-sm">
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-gray-400 hover:text-foreground text-sm">
                   Cancel
                 </button>
               </div>
@@ -110,7 +119,7 @@ export default function Sites() {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white group-hover:text-brand-400 transition-colors">
+                    <h3 className="text-lg font-semibold text-foreground group-hover:text-brand-400 transition-colors">
                       {site.name}
                     </h3>
                     {site.description && (

@@ -122,7 +122,7 @@ export default function Timeline() {
       cell: ({ row }: any) => (
         <button
           onClick={(e: React.MouseEvent) => { e.stopPropagation(); setFindingEvent(row.original) }}
-          className="p-1 text-gray-600 hover:text-white"
+          className="p-1 text-gray-600 hover:text-foreground"
         >
           <Flag className="w-3.5 h-3.5" />
         </button>
@@ -133,7 +133,7 @@ export default function Timeline() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Timeline</h1>
+        <h1 className="text-xl font-bold text-foreground">Timeline</h1>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-1 mr-2">
@@ -151,7 +151,7 @@ export default function Timeline() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search..."
-                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-48 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-48 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </form>
@@ -167,14 +167,14 @@ export default function Timeline() {
             type="date"
             value={jumpDate}
             onChange={(e) => setJumpDate(e.target.value)}
-            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500 [color-scheme:dark]"
+            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-brand-500 dark:[color-scheme:dark]"
           />
           <input
             type="time"
             value={jumpTime}
             onChange={(e) => setJumpTime(e.target.value)}
             step="1"
-            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-brand-500 [color-scheme:dark]"
+            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-brand-500 dark:[color-scheme:dark]"
           />
           <button
             type="submit"
@@ -192,7 +192,7 @@ export default function Timeline() {
             <button
               type="button"
               onClick={clearDateFilter}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 rounded-md"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-foreground bg-gray-800 rounded-md"
             >
               <X className="w-3.5 h-3.5" />
               Clear

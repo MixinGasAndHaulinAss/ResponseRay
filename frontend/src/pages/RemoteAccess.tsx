@@ -56,7 +56,7 @@ export default function RemoteAccess() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Remote Access Software</h1>
+        <h1 className="text-xl font-bold text-foreground">Remote Access Software</h1>
       </div>
 
       {/* Summary Cards */}
@@ -66,14 +66,14 @@ export default function RemoteAccess() {
             <Radio className="w-4 h-4 text-brand-400" />
             <span className="text-xs font-medium text-gray-500 uppercase">Tools Detected</span>
           </div>
-          <p className="text-2xl font-bold text-white">{totalTools}</p>
+          <p className="text-2xl font-bold text-foreground">{totalTools}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-1">
             <Eye className="w-4 h-4 text-blue-400" />
             <span className="text-xs font-medium text-gray-500 uppercase">Related Events</span>
           </div>
-          <p className="text-2xl font-bold text-white">{formatNumber(totalEvents)}</p>
+          <p className="text-2xl font-bold text-foreground">{formatNumber(totalEvents)}</p>
         </div>
         <div className={cn(
           "border rounded-lg p-4",
@@ -85,7 +85,7 @@ export default function RemoteAccess() {
             <AlertTriangle className={cn("w-4 h-4", suspiciousCount > 0 ? "text-amber-400" : "text-gray-500")} />
             <span className="text-xs font-medium text-gray-500 uppercase">Suspicious / Tunneling</span>
           </div>
-          <p className={cn("text-2xl font-bold", suspiciousCount > 0 ? "text-amber-400" : "text-white")}>{suspiciousCount}</p>
+          <p className={cn("text-2xl font-bold", suspiciousCount > 0 ? "text-amber-400" : "text-foreground")}>{suspiciousCount}</p>
         </div>
       </div>
 
@@ -150,13 +150,13 @@ export default function RemoteAccess() {
                         <Icon className={cn('w-5 h-5', colors.text)} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-white">{tool.name}</h3>
+                        <h3 className="text-sm font-semibold text-foreground">{tool.name}</h3>
                         <span className={cn('text-xs', colors.text)}>{tool.category}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-white">{formatNumber(tool.event_count)}</p>
+                        <p className="text-lg font-bold text-foreground">{formatNumber(tool.event_count)}</p>
                         <p className="text-xs text-gray-500">events</p>
                       </div>
                       <ChevronRight className={cn(

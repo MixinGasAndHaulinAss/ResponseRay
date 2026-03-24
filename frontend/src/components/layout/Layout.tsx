@@ -40,15 +40,15 @@ export default function Layout() {
         {siteId && (
           <header className="bg-gray-900/50 border-b border-gray-800 px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <NavLink to="/" className="hover:text-white transition-colors">Sites</NavLink>
+              <NavLink to="/" className="hover:text-foreground transition-colors">Sites</NavLink>
               <ChevronRight className="w-3 h-3" />
-              <NavLink to={`/sites/${siteId}`} className="hover:text-white transition-colors">
+              <NavLink to={`/sites/${siteId}`} className="hover:text-foreground transition-colors">
                 {site?.name || '...'}
               </NavLink>
               {uploadId && currentUpload && (
                 <>
                   <ChevronRight className="w-3 h-3" />
-                  <span className="text-white font-medium">{currentUpload.filename}</span>
+                  <span className="text-foreground font-medium">{currentUpload.filename}</span>
                 </>
               )}
             </div>

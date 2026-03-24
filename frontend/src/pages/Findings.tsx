@@ -146,7 +146,7 @@ export default function Findings() {
       cell: ({ row }) => (
         <button
           onClick={(e) => { e.stopPropagation(); setFindingEvent(row.original) }}
-          className="p-1 text-gray-600 hover:text-white"
+          className="p-1 text-gray-600 hover:text-foreground"
         >
           <Flag className="w-3.5 h-3.5" />
         </button>
@@ -160,12 +160,12 @@ export default function Findings() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(`/sites/${siteId}/captures/${uploadId}/dashboard`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:text-foreground bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Dashboard
           </button>
-          <h1 className="text-xl font-bold text-white">{activeLabel}</h1>
+          <h1 className="text-xl font-bold text-foreground">{activeLabel}</h1>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
@@ -184,7 +184,7 @@ export default function Findings() {
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search..."
-                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="pl-8 pr-3 py-1.5 bg-gray-900 border border-gray-700 rounded-md text-sm text-foreground placeholder-gray-500 w-64 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </form>

@@ -49,14 +49,14 @@ export default function EventDetailPanel({ event, onClose, onMarkFinding }: Prop
     <div className="fixed inset-y-0 right-0 w-[560px] bg-gray-900 border-l border-gray-800 shadow-2xl z-40 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-white">Event Detail</h3>
+          <h3 className="font-semibold text-foreground">Event Detail</h3>
           <FindingBadge finding={event.finding} isSuspicious={event.is_suspicious} ctSignificance={event.ct_significance} small />
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onMarkFinding} className="p-1.5 text-gray-400 hover:text-white" title="Mark Finding">
+          <button onClick={onMarkFinding} className="p-1.5 text-gray-400 hover:text-foreground" title="Mark Finding">
             <Flag className="w-4 h-4" />
           </button>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-foreground">
             <X className="w-4 h-4" />
           </button>
         </div>

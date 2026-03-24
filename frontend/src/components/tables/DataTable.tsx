@@ -161,17 +161,17 @@ export default function DataTable<T extends { id: number }>({
       <div className="flex items-center justify-between text-sm text-gray-400">
         <span>{formatNumber(total)} total results</span>
         <div className="flex items-center gap-1">
-          <button onClick={() => onPageChange(0)} disabled={page <= 1} className="p-1.5 hover:text-white disabled:opacity-30">
+          <button onClick={() => onPageChange(0)} disabled={page <= 1} className="p-1.5 hover:text-foreground disabled:opacity-30">
             <ChevronsLeft className="w-4 h-4" />
           </button>
-          <button onClick={() => onPageChange(Math.max(0, offset - limit))} disabled={page <= 1} className="p-1.5 hover:text-white disabled:opacity-30">
+          <button onClick={() => onPageChange(Math.max(0, offset - limit))} disabled={page <= 1} className="p-1.5 hover:text-foreground disabled:opacity-30">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="px-3">Page {page} of {totalPages || 1}</span>
-          <button onClick={() => onPageChange(offset + limit)} disabled={page >= totalPages} className="p-1.5 hover:text-white disabled:opacity-30">
+          <button onClick={() => onPageChange(offset + limit)} disabled={page >= totalPages} className="p-1.5 hover:text-foreground disabled:opacity-30">
             <ChevronRight className="w-4 h-4" />
           </button>
-          <button onClick={() => onPageChange((totalPages - 1) * limit)} disabled={page >= totalPages} className="p-1.5 hover:text-white disabled:opacity-30">
+          <button onClick={() => onPageChange((totalPages - 1) * limit)} disabled={page >= totalPages} className="p-1.5 hover:text-foreground disabled:opacity-30">
             <ChevronsRight className="w-4 h-4" />
           </button>
         </div>

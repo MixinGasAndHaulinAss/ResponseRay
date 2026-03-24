@@ -3,18 +3,56 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Light mode: mirror-invert the gray scale so dark-themed
+       classes (bg-gray-950, text-gray-400, etc.) render correctly */
+    --color-gray-50: 3 7 18;
+    --color-gray-100: 17 24 39;
+    --color-gray-200: 31 41 55;
+    --color-gray-300: 55 65 81;
+    --color-gray-400: 75 85 99;
+    --color-gray-500: 107 114 128;
+    --color-gray-600: 156 163 175;
+    --color-gray-700: 209 213 219;
+    --color-gray-800: 229 231 235;
+    --color-gray-900: 243 244 246;
+    --color-gray-950: 249 250 251;
+    --color-foreground: 15 23 42;
+    --scrollbar-track: rgb(243 244 246);
+    --scrollbar-thumb: rgb(209 213 219);
+    --scrollbar-thumb-hover: rgb(156 163 175);
+  }
+
+  .dark {
+    --color-gray-50: 249 250 251;
+    --color-gray-100: 243 244 246;
+    --color-gray-200: 229 231 235;
+    --color-gray-300: 209 213 219;
+    --color-gray-400: 156 163 175;
+    --color-gray-500: 107 114 128;
+    --color-gray-600: 75 85 99;
+    --color-gray-700: 55 65 81;
+    --color-gray-800: 31 41 55;
+    --color-gray-900: 17 24 39;
+    --color-gray-950: 3 7 18;
+    --color-foreground: 255 255 255;
+    --scrollbar-track: rgb(17 24 39);
+    --scrollbar-thumb: rgb(55 65 81);
+    --scrollbar-thumb-hover: rgb(75 85 99);
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: rgb(17 24 39);
+    background: var(--scrollbar-track);
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(55 65 81);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(75 85 99);
+    background: var(--scrollbar-thumb-hover);
   }
 }
