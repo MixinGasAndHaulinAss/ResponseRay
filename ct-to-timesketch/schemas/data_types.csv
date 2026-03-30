@@ -1,0 +1,715 @@
+data_type,field,type,description
+# =============================================================================
+# CyberTriage to Timesketch - Windows Data Types Reference
+# Generated from ct-to-timesketch extractors
+# Format compatible with Timesketch/Plaso data_types.csv
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WINDOWS EVENT LOGS (EVTX)
+# -----------------------------------------------------------------------------
+windows:evtx:record,source_name,str,name of the event provider.
+windows:evtx:record,channel,str,event log channel name.
+windows:evtx:record,event_identifier,str,Windows Event ID.
+windows:evtx:record,computer_name,str,computer name stored in the event record.
+windows:evtx:record,record_number,str,event record number.
+windows:evtx:record,user_sid,str,user security identifier (SID) stored in the event record.
+
+# -----------------------------------------------------------------------------
+# HAYABUSA THREAT DETECTION (SIGMA)
+# Fields added to windows:evtx:record events when --hayabusa is enabled
+# Hayabusa GitHub: https://github.com/Yamato-Security/hayabusa
+# -----------------------------------------------------------------------------
+windows:evtx:record,tag,list,list of tags including hayabusa- sigma- and severity level tags (hayabusa:critical- hayabusa:high- etc.).
+windows:evtx:record,hayabusa_rule,str,rule title(s) that matched (up to 5 rules- with count of additional).
+windows:evtx:record,hayabusa_rule_id,str,rule ID(s) or file name(s) that matched.
+windows:evtx:record,hayabusa_level,str,highest severity level of all detections on this event (critical- high- medium- low- informational).
+windows:evtx:record,hayabusa_status,str,rule status (stable- test- experimental).
+windows:evtx:record,hayabusa_detection_count,int,number of Sigma rules that matched this event.
+windows:evtx:record,mitre_attack,str,MITRE ATT&CK technique IDs (comma-separated- e.g. attack.t1059.001- attack.execution).
+
+# -----------------------------------------------------------------------------
+# REGISTRY - USER ACTIVITY
+# -----------------------------------------------------------------------------
+windows:registry:userassist,value_name,str,decoded UserAssist entry name (program path).
+windows:registry:userassist,key_path,str,Windows Registry key path.
+
+windows:registry:recentdocs,key_path,str,Windows Registry key path.
+
+windows:registry:typedurls,typed_paths,str,comma-separated list of typed URLs/paths.
+windows:registry:typedurls,key_path,str,Windows Registry key path.
+
+windows:registry:mrulist,commands,str,comma-separated list of MRU commands.
+windows:registry:mrulist,key_path,str,Windows Registry key path.
+
+windows:registry:bagmru,key_path,str,Windows Registry key path for ShellBag entry.
+
+# -----------------------------------------------------------------------------
+# REGISTRY - SYSTEM
+# -----------------------------------------------------------------------------
+windows:registry:sam_users,username,str,user account name.
+windows:registry:sam_users,account_rid,int,account relative identifier (RID).
+windows:registry:sam_users,key_path,str,Windows Registry key path.
+windows:registry:sam_users,last_written_time,dfdatetime.DateTimeValues,entry last written date and time.
+windows:registry:sam_users,login_count,int,login count.
+windows:registry:sam_users,last_login_time,dfdatetime.DateTimeValues,date and time of the last login.
+windows:registry:sam_users,last_password_set_time,dfdatetime.DateTimeValues,date and time of the last password set.
+windows:registry:sam_users,user_domain,str,user domain name.
+windows:registry:sam_users,user_sid,str,user security identifier (SID).
+windows:registry:sam_users,account_type,str,account type (Regular- Service- etc.).
+windows:registry:sam_users,account_status,str,account status (Active- Disabled- etc.).
+windows:registry:sam_users,admin_priv,str,admin privilege level.
+windows:registry:sam_users,home_dir,str,user home directory path.
+windows:registry:sam_users,expiration_date,dfdatetime.DateTimeValues,account expiration date.
+
+windows:registry:services,service_name,str,name of the Windows service.
+windows:registry:services,image_path,str,path to the service executable.
+
+windows:registry:usbstor,device_description,str,USB device description string.
+windows:registry:usbstor,serial_number,str,USB device serial number.
+
+windows:registry:uninstall,software_name,str,display name of installed software.
+windows:registry:uninstall,publisher,str,software publisher name.
+
+# -----------------------------------------------------------------------------
+# REGISTRY - STARTUP/AUTORUN
+# -----------------------------------------------------------------------------
+windows:registry:run,config_type,str,configuration item type.
+windows:registry:run,description,str,description of the startup item.
+windows:registry:run,details,str,startup item details/path.
+windows:registry:run,arguments,str,command line arguments.
+windows:registry:run,user_id,str,user ID associated with the startup item.
+windows:registry:run,registry_key,str,registry key path.
+windows:registry:run,registry_value,str,registry value name.
+
+# -----------------------------------------------------------------------------
+# REGISTRY - RDP/MSTSC
+# -----------------------------------------------------------------------------
+windows:registry:mstsc:connection,entries,str,remote host/server name (MRU entry).
+windows:registry:mstsc:connection,username,str,username hint for the connection.
+windows:registry:mstsc:connection,key_path,str,Windows Registry key path.
+windows:registry:mstsc:connection,last_written_time,dfdatetime.DateTimeValues,entry last written date and time.
+windows:registry:mstsc:connection,remote_domain,str,remote domain name.
+windows:registry:mstsc:connection,local_user,str,local user who made the connection.
+windows:registry:mstsc:connection,user_sid,str,user security identifier (SID).
+
+# -----------------------------------------------------------------------------
+# REGISTRY - NETWORK SHARES
+# -----------------------------------------------------------------------------
+windows:registry:mountpoints2,remote_host_name,str,remote host name.
+windows:registry:mountpoints2,remote_share_name,str,remote share name.
+windows:registry:mountpoints2,user_id,str,user ID who accessed the share.
+windows:registry:mountpoints2,user_sid,str,user security identifier (SID).
+
+# -----------------------------------------------------------------------------
+# AMCACHE
+# -----------------------------------------------------------------------------
+windows:registry:amcache,sha1_hash,str,SHA1 hash of the executable.
+windows:registry:amcache,file_path,str,full path to the executable.
+windows:registry:amcache,file_name,str,name of the executable file.
+windows:registry:amcache,publisher,str,software publisher.
+windows:registry:amcache,product_name,str,product name.
+windows:registry:amcache,product_version,str,product version.
+windows:registry:amcache,file_version,str,file version from PE header.
+windows:registry:amcache,binary_type,str,binary type (32-bit- 64-bit).
+windows:registry:amcache,file_size,int,file size in bytes.
+windows:registry:amcache,language,str,language code.
+windows:registry:amcache,program_id,str,program identifier.
+windows:registry:amcache,file_id,str,file identifier.
+windows:registry:amcache,sha256_hash,str,SHA256 hash of the executable.
+
+windows:registry:amcache:inventory_application,program_name,str,program name as shown in Add/Remove Programs.
+windows:registry:amcache:inventory_application,publisher,str,software publisher.
+windows:registry:amcache:inventory_application,version,str,installed version.
+windows:registry:amcache:inventory_application,language,int,language code.
+windows:registry:amcache:inventory_application,install_date,str,installation date.
+windows:registry:amcache:inventory_application,install_source,str,installation source (MSI- AppxPackage- etc.).
+windows:registry:amcache:inventory_application,install_path,str,installation directory path.
+windows:registry:amcache:inventory_application,uninstall_string,str,uninstall command string.
+windows:registry:amcache:inventory_application,registry_key_path,str,uninstall registry key path.
+windows:registry:amcache:inventory_application,msi_product_code,str,MSI product code GUID.
+windows:registry:amcache:inventory_application,msi_package_code,str,MSI package code GUID.
+windows:registry:amcache:inventory_application,program_id,str,program identifier.
+windows:registry:amcache:inventory_application,program_instance_id,str,program instance identifier.
+windows:registry:amcache:inventory_application,hidden_from_arp,bool,True if hidden from Add/Remove Programs.
+windows:registry:amcache:inventory_application,is_inbox_app,bool,True if Windows built-in app.
+windows:registry:amcache:inventory_application,store_app_type,str,Windows Store app type.
+windows:registry:amcache:inventory_application,package_full_name,str,full package name for Store apps.
+windows:registry:amcache:inventory_application,manifest_path,str,path to app manifest.
+
+# -----------------------------------------------------------------------------
+# TASK SCHEDULER
+# -----------------------------------------------------------------------------
+task_scheduler:task_cache:entry,task_name,str,name/path of the scheduled task.
+task_scheduler:task_cache:entry,task_identifier,str,GUID identifier of the task.
+task_scheduler:task_cache:entry,key_path,str,Windows Registry key path.
+task_scheduler:task_cache:entry,last_written_time,dfdatetime.DateTimeValues,entry last written date and time.
+task_scheduler:task_cache:entry,last_registered_time,dfdatetime.DateTimeValues,date and time the task was last registered.
+task_scheduler:task_cache:entry,launch_time,dfdatetime.DateTimeValues,date and time the task was last launched.
+task_scheduler:task_cache:entry,unknown_time,dfdatetime.DateTimeValues,unknown date and time from DynamicInfo.
+
+windows:tasks:job,process_name,str,process/executable name.
+windows:tasks:job,process_path,str,path to the executable.
+windows:tasks:job,pid,int,process identifier.
+windows:tasks:job,command_line,str,command line arguments.
+windows:tasks:job,user_id,str,user ID running the process.
+
+# -----------------------------------------------------------------------------
+# FILE SYSTEM (NTFS)
+# -----------------------------------------------------------------------------
+fs:stat:ntfs:$standard_information,file_path,str,full file path.
+fs:stat:ntfs:$standard_information,file_size,int,file size in bytes.
+fs:stat:ntfs:$standard_information,meta_type,str,metadata type (File- Dir).
+fs:stat:ntfs:$standard_information,md5,str,MD5 hash of the file.
+fs:stat:ntfs:$standard_information,sha256,str,SHA256 hash of the file.
+fs:stat:ntfs:$standard_information,is_source_file,bool,True if file is a forensic source file.
+
+fs:stat:ntfs:$file_name,file_path,str,full file path.
+
+# -----------------------------------------------------------------------------
+# LNK FILES
+# -----------------------------------------------------------------------------
+windows:lnk:link,lnk_file,str,name of the LNK shortcut file.
+windows:lnk:link,lnk_path,str,path to the LNK file.
+windows:lnk:link,link_target,str,target path the shortcut points to.
+
+# -----------------------------------------------------------------------------
+# PREFETCH
+# -----------------------------------------------------------------------------
+windows:prefetch:execution,executable,str,name of the executed program.
+windows:prefetch:execution,prefetch_file,str,name of the prefetch file.
+windows:prefetch:execution,prefetch_path,str,path to the prefetch file.
+windows:prefetch:execution,run_count,int,number of times the program was executed.
+
+# -----------------------------------------------------------------------------
+# BROWSER HISTORY
+# -----------------------------------------------------------------------------
+chrome:history:page_visited,url,str,URL of the visited page.
+chrome:history:page_visited,title,str,title of the visited page.
+chrome:history:page_visited,visit_count,int,number of visits to this URL.
+chrome:history:page_visited,browser_type,str,browser type (Chrome- Edge- Brave).
+
+firefox:places:page_visited,url,str,URL of the visited page.
+firefox:places:page_visited,title,str,title of the visited page.
+firefox:places:page_visited,visit_count,int,number of visits to this URL.
+firefox:places:page_visited,browser_type,str,browser type (Firefox).
+
+# -----------------------------------------------------------------------------
+# WEBCACHE (IE/EDGE)
+# -----------------------------------------------------------------------------
+msiecf:url,url,str,URL from the WebCache.
+msiecf:url,container,str,container name in WebCache.
+msiecf:url,access_count,int,number of accesses.
+msiecf:url,username,str,username associated with the cache entry.
+msiecf:url,webcache_file,str,path to the WebCache file.
+
+# -----------------------------------------------------------------------------
+# POWERSHELL
+# -----------------------------------------------------------------------------
+windows:powershell:console_history,command,str,PowerShell command executed.
+windows:powershell:console_history,command_index,int,command index in history file.
+windows:powershell:console_history,total_commands,int,total commands in history file.
+windows:powershell:console_history,username,str,username who executed the command.
+windows:powershell:console_history,history_file,str,path to the history file.
+windows:powershell:console_history,suspicious,bool,True if command matches suspicious patterns.
+
+# -----------------------------------------------------------------------------
+# NETWORK CONNECTIONS
+# -----------------------------------------------------------------------------
+windows:network:connection,local_ip,str,local IP address.
+windows:network:connection,local_port,int,local port number.
+windows:network:connection,remote_ip,str,remote IP address.
+windows:network:connection,remote_port,int,remote port number.
+windows:network:connection,connection_type,str,connection type (TCP- UDP).
+windows:network:connection,pid,int,process identifier.
+
+# -----------------------------------------------------------------------------
+# SRUM (System Resource Usage Monitor)
+# -----------------------------------------------------------------------------
+windows:srum:application_usage,application,str,application path or name.
+windows:srum:application_usage,identifier,int,SRUM entry auto-increment ID.
+windows:srum:application_usage,user_identifier,str,user SID.
+windows:srum:application_usage,foreground_cycle_time,int,foreground CPU cycles (100-nanosecond intervals).
+windows:srum:application_usage,background_cycle_time,int,background CPU cycles.
+windows:srum:application_usage,face_time,int,user interaction time.
+windows:srum:application_usage,foreground_context_switches,int,foreground context switch count.
+windows:srum:application_usage,background_context_switches,int,background context switch count.
+windows:srum:application_usage,foreground_bytes_read,int,foreground disk bytes read.
+windows:srum:application_usage,foreground_bytes_written,int,foreground disk bytes written.
+windows:srum:application_usage,foreground_read_operations,int,foreground disk read operations.
+windows:srum:application_usage,foreground_write_operations,int,foreground disk write operations.
+windows:srum:application_usage,foreground_flushes,int,foreground disk flush operations.
+windows:srum:application_usage,background_bytes_read,int,background disk bytes read.
+windows:srum:application_usage,background_bytes_written,int,background disk bytes written.
+windows:srum:application_usage,background_read_operations,int,background disk read operations.
+windows:srum:application_usage,background_write_operations,int,background disk write operations.
+windows:srum:application_usage,background_flushes,int,background disk flush operations.
+
+windows:srum:network_connectivity,application,str,application path or name.
+windows:srum:network_connectivity,identifier,int,SRUM entry auto-increment ID.
+windows:srum:network_connectivity,user_identifier,str,user SID.
+windows:srum:network_connectivity,interface_luid,int,network interface LUID.
+windows:srum:network_connectivity,interface_type,str,network interface type (Ethernet- WiFi- etc.).
+windows:srum:network_connectivity,connected_time,int,connection duration in seconds.
+windows:srum:network_connectivity,connect_start_time,dfdatetime.DateTimeValues,connection start timestamp.
+windows:srum:network_connectivity,l2_profile_id,int,layer 2 profile identifier.
+windows:srum:network_connectivity,l2_profile_flags,int,layer 2 profile flags.
+
+windows:srum:network_usage,application,str,application or interface name.
+windows:srum:network_usage,identifier,int,SRUM entry auto-increment ID.
+windows:srum:network_usage,user_identifier,str,user SID.
+windows:srum:network_usage,bytes_received,int,bytes received (inbound).
+windows:srum:network_usage,bytes_sent,int,bytes sent (outbound).
+windows:srum:network_usage,bytes_total,int,total bytes transferred.
+windows:srum:network_usage,interface_luid,int,network interface LUID (if available).
+
+windows:timeline:generic,application,str,application name or identifier.
+windows:timeline:generic,package_identifier,str,application package name.
+windows:timeline:generic,activity_identifier,str,unique activity ID (GUID).
+windows:timeline:generic,activity_type,int,activity type code.
+windows:timeline:generic,activity_status,int,activity status code.
+windows:timeline:generic,start_time,str,activity start timestamp.
+windows:timeline:generic,end_time,str,activity end timestamp.
+windows:timeline:generic,duration,int,activity duration in seconds.
+windows:timeline:generic,tag,str,activity tag or description.
+windows:timeline:generic,group,str,activity group identifier.
+windows:timeline:generic,platform,str,platform (windows/android/ios).
+windows:timeline:generic,app_activity_id,str,application-specific activity ID.
+windows:timeline:generic,is_local_only,bool,whether activity is local-only.
+windows:timeline:generic,device_id,str,device identifier.
+
+windows:timeline:user_engaged,application,str,application name or identifier.
+windows:timeline:user_engaged,package_identifier,str,application package name.
+windows:timeline:user_engaged,active_duration_seconds,int,time user was actively engaged (seconds).
+windows:timeline:user_engaged,start_time,str,engagement start timestamp.
+windows:timeline:user_engaged,end_time,str,engagement end timestamp.
+windows:timeline:user_engaged,activity_identifier,str,unique activity ID (GUID).
+windows:timeline:user_engaged,platform,str,platform (windows/android/ios).
+windows:timeline:user_engaged,device_id,str,device identifier.
+windows:timeline:user_engaged,is_local_only,bool,whether activity is local-only.
+
+windows:user_access_logging:clients,client_ip,str,client IP address.
+windows:user_access_logging:clients,username,str,authenticated username.
+windows:user_access_logging:clients,client_name,str,client computer name.
+windows:user_access_logging:clients,role_identifier,str,service role GUID.
+windows:user_access_logging:clients,role_name,str,service role name (AD, File Server, etc.).
+windows:user_access_logging:clients,access_count,int,total number of accesses.
+windows:user_access_logging:clients,first_seen_time,str,first access timestamp.
+windows:user_access_logging:clients,last_seen_time,str,last access timestamp.
+
+windows:user_access_logging:dns,client_ip,str,DNS client IP address.
+windows:user_access_logging:dns,hostname,str,queried hostname.
+
+# -----------------------------------------------------------------------------
+# BITS (Background Intelligent Transfer Service)
+# -----------------------------------------------------------------------------
+windows:bits:job,job_id,str,BITS job GUID.
+windows:bits:job,job_name,str,user-defined job name.
+windows:bits:job,job_type,str,transfer type (Download- Upload- Upload-Reply).
+windows:bits:job,state,str,job state (Queued- Transferring- Transferred- Error- etc.).
+windows:bits:job,priority,str,job priority (Foreground- High- Normal- Low).
+windows:bits:job,url,str,remote URL for download/upload.
+windows:bits:job,local_path,str,local file path for transfer.
+windows:bits:job,bytes_total,int,total bytes to transfer.
+windows:bits:job,bytes_transferred,int,bytes already transferred.
+windows:bits:job,creation_time,str,job creation timestamp.
+windows:bits:job,modification_time,str,last modification timestamp.
+windows:bits:job,owner_sid,str,owner security identifier (SID).
+
+# -----------------------------------------------------------------------------
+# WMI (Windows Management Instrumentation) Persistence
+# -----------------------------------------------------------------------------
+windows:wmi:subscription,consumer_types,str,list of WMI consumer types found.
+windows:wmi:subscription,pattern_names,str,list of suspicious pattern names detected.
+windows:wmi:subscription,confidence,str,detection confidence level (high/medium/low).
+windows:wmi:subscription,consumer_name,str,WMI event consumer name.
+windows:wmi:subscription,consumer_type,str,WMI consumer type (CommandLine/ActiveScript/etc).
+windows:wmi:subscription,filter_query,str,WQL trigger query.
+windows:wmi:subscription,command_line,str,command line executed by consumer.
+windows:wmi:subscription,script_text,str,script content (if ActiveScriptEventConsumer).
+windows:wmi:subscription,context_sample,str,sample of surrounding context for analysis.
+windows:wmi:subscription,finding_count,int,number of related findings in this event.
+
+# -----------------------------------------------------------------------------
+# RECYCLE BIN (Deleted Files)
+# -----------------------------------------------------------------------------
+windows:metadata:deleted_item,original_filename,str,original filename before deletion.
+windows:metadata:deleted_item,original_path,str,original file path before deletion.
+windows:metadata:deleted_item,file_size,int,size of the deleted file in bytes.
+windows:metadata:deleted_item,file_size_human,str,human-readable file size (e.g. 1.2 MB).
+windows:metadata:deleted_item,drive_number,int,drive number from which file was deleted (C:=3- D:=4- etc.).
+windows:metadata:deleted_item,user_sid,str,user SID from $RECYCLE.BIN path.
+windows:metadata:deleted_item,recycle_bin_file,str,$I file name in recycle bin.
+windows:metadata:deleted_item,recycle_bin_path,str,full path to $I file in recycle bin.
+windows:metadata:deleted_item,format_version,int,$I file format version (1=Vista/7/8- 2=Win10+).
+
+# -----------------------------------------------------------------------------
+# ENTRA ID / AZURE AD SIGN-INS
+# Field names use original Entra camelCase for search compatibility with Azure portal queries.
+# Reference: https://learn.microsoft.com/en-us/graph/api/resources/signin
+# -----------------------------------------------------------------------------
+entra:signin,id,str,unique sign-in record identifier (GUID).
+entra:signin,userId,str,Azure AD user GUID.
+entra:signin,userPrincipalName,str,user principal name (UPN) - the username.
+entra:signin,userDisplayName,str,user display name.
+entra:signin,userType,str,user type (member- guest- etc.).
+entra:signin,appId,str,application GUID.
+entra:signin,appDisplayName,str,application display name.
+entra:signin,appOwnerTenantId,str,application owner tenant GUID.
+entra:signin,ipAddress,str,client IP address from sign-in.
+entra:signin,ipAddressFromResourceProvider,str,IP address from resource provider if different.
+entra:signin,autonomousSystemNumber,int,autonomous system number (ASN) for IP address.
+entra:signin,clientAppUsed,str,client application type (Browser- Mobile Apps and Desktop clients- etc.).
+entra:signin,userAgent,str,HTTP user agent string.
+entra:signin,correlationId,str,correlation ID for the sign-in event.
+entra:signin,conditionalAccessStatus,str,conditional access policy result (success- failure- notApplied).
+entra:signin,isInteractive,bool,whether sign-in was interactive.
+entra:signin,tokenIssuerName,str,token issuer name.
+entra:signin,tokenIssuerType,str,token issuer type (AzureAD- ADFederationServices- etc.).
+entra:signin,clientCredentialType,str,client credential type (none- certificate- secret- etc.).
+entra:signin,processingTimeInMilliseconds,int,authentication processing time in milliseconds.
+entra:signin,authenticationRequirement,str,authentication requirement (singleFactorAuthentication- multiFactorAuthentication).
+entra:signin,authenticationProtocol,str,authentication protocol used.
+entra:signin,signInIdentifier,str,sign-in identifier used (email- phone- etc.).
+entra:signin,signInIdentifierType,str,type of sign-in identifier.
+entra:signin,servicePrincipalName,str,service principal name if applicable.
+entra:signin,servicePrincipalId,str,service principal GUID.
+entra:signin,federatedCredentialId,str,federated credential ID if applicable.
+entra:signin,flaggedForReview,bool,whether sign-in was flagged for review.
+entra:signin,isTenantRestricted,bool,whether tenant restrictions applied.
+entra:signin,isThroughGlobalSecureAccess,bool,whether sign-in went through Global Secure Access.
+entra:signin,crossTenantAccessType,str,cross-tenant access type (none- b2bCollaboration- etc.).
+entra:signin,uniqueTokenIdentifier,str,unique token identifier.
+entra:signin,incomingTokenType,str,incoming token type.
+entra:signin,sessionId,str,session identifier.
+entra:signin,signInTokenProtectionStatus,str,token protection status (bound- unbound- etc.).
+entra:signin,originalRequestId,str,original request ID for correlation with related sign-in events.
+entra:signin,signInEventTypes,str,comma-separated sign-in event types (interactiveUser- nonInteractiveUser- servicePrincipal).
+entra:signin,resourceDisplayName,str,resource application display name.
+entra:signin,resourceId,str,resource application GUID.
+entra:signin,resourceTenantId,str,resource tenant GUID.
+entra:signin,resourceOwnerTenantId,str,resource owner tenant GUID.
+entra:signin,resourceServicePrincipalId,str,resource service principal GUID.
+entra:signin,homeTenantId,str,user's home tenant GUID.
+entra:signin,homeTenantName,str,user's home tenant name.
+entra:signin,createdDateTime,dfdatetime.DateTimeValues,sign-in event creation timestamp.
+# Status fields (CRITICAL for blocked login detection)
+entra:signin,statusErrorCode,int,sign-in error code (0=success- 50126=bad password- 53003=CA blocked- 50158=risk blocked).
+entra:signin,statusFailureReason,str,human-readable failure reason.
+entra:signin,statusAdditionalDetails,str,additional details about the sign-in status.
+# Risk fields (CRITICAL for AitM/phishing detection)
+entra:signin,riskDetail,str,risk detail from Azure AD Identity Protection.
+entra:signin,riskLevelAggregated,str,aggregated risk level (none- low- medium- high- hidden).
+entra:signin,riskLevelDuringSignIn,str,risk level at time of sign-in.
+entra:signin,riskState,str,risk state (none- confirmedSafe- remediated- dismissed- atRisk- confirmedCompromised).
+entra:signin,riskEventTypes_v2,str,comma-separated risk event types (unlikelyTravel- unfamiliarFeatures- maliciousIPAddress- etc.).
+# Geolocation fields (CRITICAL for impossible travel analysis)
+entra:signin,locationCity,str,city from IP geolocation.
+entra:signin,locationState,str,state/province from IP geolocation.
+entra:signin,locationCountry,str,country/region code from IP geolocation.
+entra:signin,locationLatitude,float,latitude coordinate from IP geolocation.
+entra:signin,locationLongitude,float,longitude coordinate from IP geolocation.
+# Device fields (useful for conditional access analysis)
+entra:signin,deviceId,str,device GUID if registered/joined.
+entra:signin,deviceDisplayName,str,device display name.
+entra:signin,deviceOS,str,device operating system.
+entra:signin,deviceBrowser,str,browser name and version.
+entra:signin,deviceIsCompliant,bool,whether device is compliant with policies.
+entra:signin,deviceIsManaged,bool,whether device is MDM-managed.
+entra:signin,deviceTrustType,str,device trust type (Azure AD joined- Azure AD registered- Hybrid Azure AD joined).
+# MFA fields
+entra:signin,mfaAuthMethod,str,MFA authentication method used.
+entra:signin,mfaAuthDetail,str,MFA authentication detail.
+# Complex arrays (JSON-serialized for full fidelity)
+entra:signin,appliedConditionalAccessPolicies,str,JSON array of CA policies with id- displayName- result- enforcedGrantControls- enforcedSessionControls.
+entra:signin,authenticationDetails,str,JSON array of auth steps with authenticationMethod- succeeded- authenticationStepResultDetail- authenticationStepDateTime.
+entra:signin,networkLocationDetails,str,JSON array with networkType (trustedNamedLocation- etc) and networkNames.
+entra:signin,authenticationProcessingDetails,str,JSON array of key-value pairs with processing context.
+entra:signin,authenticationRequirementPolicies,str,JSON array with requirementProvider and detail.
+# Searchable summary fields (extracted from complex arrays)
+entra:signin,appliedCaPolicyNames,str,comma-separated names of CA policies that were evaluated (result != notApplied).
+entra:signin,authMethodsUsed,str,comma-separated authentication methods used (Password- Previously satisfied- etc.).
+
+# -----------------------------------------------------------------------------
+# ENTRA ID / AZURE AD AUDIT LOGS
+# Field names use original Entra camelCase for search compatibility with Azure portal queries.
+# Reference: https://learn.microsoft.com/en-us/graph/api/resources/directoryaudit
+# -----------------------------------------------------------------------------
+entra:audit,id,str,unique audit log record ID (GUID).
+entra:audit,activityDisplayName,str,display name of the audit activity (Update user- Add member to group- etc.).
+entra:audit,category,str,audit log category (UserManagement- GroupManagement- ApplicationManagement- etc.).
+entra:audit,result,str,operation result (success- failure- timeout- unknownFutureValue).
+entra:audit,resultReason,str,additional details about the result.
+entra:audit,loggedByService,str,service that logged the activity (Core Directory- Self-service Password Management- etc.).
+entra:audit,correlationId,str,correlation ID for the audit event (can correlate with entra:signin).
+entra:audit,userAgent,str,HTTP user agent string.
+entra:audit,createdDateTime,dfdatetime.DateTimeValues,audit event timestamp.
+# Actor - User initiator
+entra:audit,userId,str,actor user GUID (initiatedBy.user.id).
+entra:audit,userPrincipalName,str,actor user principal name (initiatedBy.user.userPrincipalName).
+entra:audit,userDisplayName,str,actor user display name (initiatedBy.user.displayName).
+entra:audit,ipAddress,str,actor IP address (initiatedBy.user.ipAddress).
+entra:audit,homeTenantId,str,actor home tenant GUID.
+entra:audit,homeTenantName,str,actor home tenant name.
+# Actor - App initiator
+entra:audit,actorAppId,str,actor application GUID (initiatedBy.app.appId).
+entra:audit,actorAppDisplayName,str,actor application display name (initiatedBy.app.displayName).
+entra:audit,actorServicePrincipalId,str,actor service principal GUID (initiatedBy.app.servicePrincipalId).
+entra:audit,actorServicePrincipalName,str,actor service principal name (initiatedBy.app.servicePrincipalName).
+# Target information
+entra:audit,targetId,str,target resource GUID (targetResources[].id).
+entra:audit,targetUserPrincipalName,str,target user principal name (targetResources[].userPrincipalName).
+entra:audit,targetDisplayName,str,target display name (targetResources[].displayName).
+entra:audit,targetType,str,target resource type (User- Group- Application- Device- etc.).
+# Complex arrays (JSON-serialized for full fidelity)
+entra:audit,additionalDetails,str,JSON array of key-value pairs with additional context (e.g. UserType- Action Client Name).
+entra:audit,modifiedProperties,str,JSON array of modified properties with displayName- oldValue- newValue (from targetResources[0]).
+# Searchable summary field
+entra:audit,modifiedPropertyNames,str,comma-separated list of property names that were modified.
+
+# -----------------------------------------------------------------------------
+# SYSTEM STATE (MEMORY ARTIFACTS)
+# -----------------------------------------------------------------------------
+ct:memory:process,process_name,str,name of the running process executable.
+ct:memory:process,process_path,str,full path to the process executable.
+ct:memory:process,command_line,str,command line arguments used to launch the process.
+ct:memory:process,raw_path,str,raw path data (Windows format).
+ct:memory:process,pid,str,process identifier.
+ct:memory:process,ppid,str,parent process identifier.
+ct:memory:process,user_id,str,user account running the process.
+ct:memory:process,user_domain,str,domain of the user account.
+ct:memory:process,user_sid,str,security identifier (SID) of the user.
+ct:memory:process,elevated,bool,True if process has elevated admin privileges.
+ct:memory:process,is_service,bool,True if process is running as a Windows service.
+ct:memory:process,dll_count,int,number of loaded DLLs/modules in the process.
+ct:memory:process,observation_type,str,observation type (LiveSnapshot for memory capture).
+
+ct:memory:loaded_module,module_name,str,name of the loaded DLL/module.
+ct:memory:loaded_module,module_path,str,full path to the loaded DLL/module.
+ct:memory:loaded_module,process_name,str,name of the process that loaded this module.
+ct:memory:loaded_module,pid,str,process identifier of the hosting process.
+
+ct:memory:dns_cache,hostname,str,DNS hostname that was queried.
+ct:memory:dns_cache,resolved_ip,str,IP address returned by DNS lookup (may be empty if lookup failed).
+
+ct:memory:arp_cache,ip_address,str,IP address from ARP cache entry.
+ct:memory:arp_cache,mac_address,str,MAC/physical address associated with the IP.
+
+ct:memory:routing_table,destination,str,destination network/IP address.
+ct:memory:routing_table,next_hop,str,next hop gateway address (0.0.0.0 for direct routes).
+
+# -----------------------------------------------------------------------------
+# DHCP SERVER LOGS
+# -----------------------------------------------------------------------------
+# Event Types (use in queries: event_type:"dhcp_lease_new"):
+#   Lease Operations:
+#     dhcp_lease_new (ID 10) - New lease assigned
+#     dhcp_lease_renew (ID 11) - Lease renewed
+#     dhcp_lease_release (ID 12) - Lease released by client
+#     dhcp_ip_conflict (ID 13) - IP address conflict detected [FORENSIC PRIORITY]
+#     dhcp_lease_denied (ID 14) - Lease request denied [FORENSIC PRIORITY]
+#     dhcp_lease_expired (ID 15) - Lease expired
+#     dhcp_lease_deleted (ID 16) - Lease deleted from server
+#   Authorization:
+#     dhcp_auth_failed (ID 17) - Server authorization failed [FORENSIC PRIORITY]
+#     dhcp_auth_success (ID 18) - Server authorization succeeded
+#   DNS Operations:
+#     dhcp_dns_update (ID 24/30) - DNS update request
+#     dhcp_dns_failed (ID 25/31) - DNS update failed
+#     dhcp_dns_success (ID 32) - DNS update successful
+#     dhcp_dns_delete (ID 33) - DNS forward record deleted
+#     dhcp_dns_ptr_delete (ID 34) - DNS PTR record deleted
+#   Rogue Server Detection:
+#     dhcp_rogue_detect (ID 60) - Rogue server detected [FORENSIC PRIORITY]
+#     dhcp_rogue_auth (ID 61) - Rogue server authorized
+#     dhcp_rogue_unauth (ID 62) - Rogue server not authorized [FORENSIC PRIORITY]
+#     dhcp_rogue_resolved (ID 63) - Rogue server resolved
+#     dhcp_rogue_response (ID 64) - Rogue server response [FORENSIC PRIORITY]
+#   Server Operations:
+#     dhcp_log_start (ID 0) - Log started
+#     dhcp_log_stop (ID 1) - Log stopped
+#     dhcp_log_paused (ID 2) - Log paused
+#   BOOTP:
+#     dhcp_bootp_lease (ID 20) - BOOTP lease
+#     dhcp_bootp_renew (ID 21) - BOOTP renewal
+#   Failover:
+#     dhcp_failover (ID 50) - Failover event
+#     dhcp_failover_rel (ID 51) - Failover relationship
+#     dhcp_failover_start (ID 52) - Failover start
+#     dhcp_failover_stop (ID 53) - Failover stop
+#     dhcp_failover_switch (ID 54) - Failover switch
+#   NAP (Network Access Protection):
+#     dhcp_nap_quarantine (ID 35) - NAP quarantine
+#     dhcp_nap_full (ID 36) - NAP full access
+#   Generic:
+#     dhcp_event - Unknown/unmapped event ID
+# -----------------------------------------------------------------------------
+# Vendor Class Reference (common values for device identification):
+#   MSFT 5.0 - Windows clients (XP through 11)
+#   chromeos - Chromebooks (Google Chrome OS)
+#   android-dhcp-* - Android devices (version in suffix)
+#   yealink - Yealink VoIP phones
+#   Verkada - Verkada security cameras
+#   Cisco AP* - Cisco wireless access points
+#   udhcp* - Embedded Linux/IoT devices
+#   dhcpcd-* - Linux DHCP client daemon
+#   PXEClient:* - PXE/network boot clients
+#   HP Printer - HP network printers
+# -----------------------------------------------------------------------------
+windows:dhcp:server_log,dhcp_event_id,str,DHCP event ID (10=New Lease- 11=Renew- 12=Release- etc.).
+windows:dhcp:server_log,dhcp_description,str,human-readable event description.
+windows:dhcp:server_log,ip_address,str,assigned/requested IP address.
+windows:dhcp:server_log,hostname,str,client hostname.
+windows:dhcp:server_log,mac_address,str,client MAC address (formatted XX:XX:XX:XX:XX:XX).
+windows:dhcp:server_log,username,str,associated username (if available).
+windows:dhcp:server_log,transaction_id,str,DHCP transaction identifier.
+windows:dhcp:server_log,q_result,str,query result code.
+windows:dhcp:server_log,correlation_id,str,correlation ID for related events.
+windows:dhcp:server_log,vendor_class,str,client vendor class (e.g. MSFT 5.0- chromeos- android-dhcp-*).
+windows:dhcp:server_log,user_class,str,client user class.
+windows:dhcp:server_log,log_file,str,source log file name (DhcpSrvLog-{Day}.log).
+windows:dhcp:server_log,forensic_priority,str,True for security-relevant events (conflicts- denials- rogues).
+
+# -----------------------------------------------------------------------------
+# ANALYST FINDINGS (CyberTriage Bad Items Import)
+# Imported via: python -m ct_to_timesketch.findings_importer <bad_items.json>
+# -----------------------------------------------------------------------------
+ct:analyst:finding,finding_type,str,type of finding (File- process- Web artifact- etc.).
+ct:analyst:finding,analyst_verdict,str,analyst's verdict (notable- suspicious- cleared- benign).
+ct:analyst:finding,analyst_comment,str,free-text analyst comment/notes.
+ct:analyst:finding,ct_score,str,original CyberTriage score (Notable_Override- etc.).
+ct:analyst:finding,file_path,str,path to the flagged file.
+ct:analyst:finding,file_name,str,name of the flagged file.
+ct:analyst:finding,file_size,int,file size in bytes.
+ct:analyst:finding,md5,str,MD5 hash of the file.
+ct:analyst:finding,sha1,str,SHA1 hash of the file.
+ct:analyst:finding,sha256,str,SHA256 hash of the file.
+ct:analyst:finding,imphash,str,import hash for executables.
+ct:analyst:finding,signature,str,code signing status.
+ct:analyst:finding,tag,list,auto-generated and analyst tags.
+
+ct:analyst:finding:file,finding_type,str,file finding - same fields as ct:analyst:finding.
+
+ct:analyst:finding:process,process_name,str,name of the flagged process.
+ct:analyst:finding:process,command_line,str,command line arguments.
+ct:analyst:finding:process,pid,int,process identifier.
+ct:analyst:finding:process,ppid,int,parent process identifier.
+ct:analyst:finding:process,elevated,bool,whether process had elevated privileges.
+ct:analyst:finding:process,is_service,bool,whether process is a Windows service.
+
+ct:analyst:finding:web,url,str,URL that was flagged.
+ct:analyst:finding:web,visit_type,str,type of visit (LINK- TYPED- etc.).
+ct:analyst:finding:web,remote_host,str,remote hostname from URL.
+
+ct:analyst:finding:network,local_ip,str,local IP address.
+ct:analyst:finding:network,local_port,int,local port number.
+ct:analyst:finding:network,remote_ip,str,remote IP address.
+ct:analyst:finding:network,remote_port,int,remote port number.
+ct:analyst:finding:network,connection_type,str,connection type (TCP- UDP).
+ct:analyst:finding:network,pid,int,process identifier.
+
+ct:analyst:finding:account,account_type,str,type of account (Regular- Service- etc.).
+ct:analyst:finding:account,account_status,str,account status (Active- Disabled- etc.).
+ct:analyst:finding:account,admin_priv,str,admin privilege level.
+ct:analyst:finding:account,home_dir,str,user home directory.
+
+ct:analyst:finding:access,file_path,str,path to the accessed data.
+ct:analyst:finding:access,url,str,URL of the accessed resource.
+
+ct:analyst:finding:config,config_type,str,type of configuration item.
+ct:analyst:finding:config,registry_key,str,registry key path.
+ct:analyst:finding:config,service_name,str,service name if applicable.
+
+# -----------------------------------------------------------------------------
+# MICROSOFT DEFENDER FOR OFFICE 365 (MDO) - URL CLICKS
+# Export source: security.microsoft.com > Email & collaboration > Explorer > URL clicks
+# Reference: https://learn.microsoft.com/en-us/defender-office-365/threat-explorer-email-security
+# CORRELATION: networkMessageId links to mdo:email_event records
+# -----------------------------------------------------------------------------
+mdo:url_click,recipient,str,email address of the user who clicked the URL.
+mdo:url_click,url,str,the URL that was clicked (refanged from [%%] format).
+mdo:url_click,urlDomain,str,extracted domain from the URL for searchability.
+mdo:url_click,urlClickAction,str,action taken: Allowed or Blocked.
+mdo:url_click,isClickedThrough,bool,whether user proceeded through warnings/blocks.
+mdo:url_click,networkMessageId,str,GUID linking to source email - CORRELATION KEY with mdo:email_event.
+mdo:url_click,clickId,str,unique identifier for this click event.
+mdo:url_click,sourceId,str,source identifier (typically matches networkMessageId).
+mdo:url_click,workload,str,service where click occurred (typically Email).
+mdo:url_click,clientIp,str,IP address of the user when clicking.
+mdo:url_click,urlChain,str,JSON array of redirect chain showing full URL path.
+mdo:url_click,threatType,str,detected threat type if malicious.
+mdo:url_click,detectionTechnology,str,how the threat was detected.
+mdo:url_click,appName,str,client application used (Mail- Microsoft Outlook- OWA- etc.).
+mdo:url_click,appVersion,str,version of the client application.
+mdo:url_click,tags,str,user tags (e.g. Priority account- Department Directors).
+
+# -----------------------------------------------------------------------------
+# MICROSOFT DEFENDER FOR OFFICE 365 (MDO) - EMAIL EVENTS
+# Export source: security.microsoft.com > Email & collaboration > Explorer > All email
+# Reference: https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-emailevents-table
+# CORRELATION: networkMessageId links to mdo:url_click records
+# CORRELATION: senderObjectId/recipientObjectId link to entra:signin userId
+# -----------------------------------------------------------------------------
+mdo:email_event,networkMessageId,str,unique message ID - CORRELATION KEY with mdo:url_click.
+mdo:email_event,internetMessageId,str,public-facing email Message-ID header.
+# Sender fields
+mdo:email_event,senderAddress,str,sender email address (From header).
+mdo:email_event,senderDisplayName,str,sender display name.
+mdo:email_event,senderDomain,str,sender domain.
+mdo:email_event,senderIp,str,sender mail server IP address.
+mdo:email_event,senderMailFrom,str,envelope sender (MAIL FROM) if different from senderAddress.
+mdo:email_event,senderMailFromDomain,str,envelope sender domain.
+mdo:email_event,senderObjectId,str,sender Entra ID GUID - CORRELATION KEY with entra:signin userId.
+# Recipient fields
+mdo:email_event,recipients,str,recipient email address(es).
+mdo:email_event,recipientObjectId,str,recipient Entra ID GUID - CORRELATION KEY with entra:signin userId.
+mdo:email_event,to,str,formatted To recipients.
+mdo:email_event,cc,str,formatted CC recipients.
+# Message content
+mdo:email_event,subject,str,email subject line.
+mdo:email_event,mailLanguage,str,detected email language.
+mdo:email_event,size,int,message size in bytes.
+mdo:email_event,attachmentCount,int,number of attachments.
+mdo:email_event,urlCount,int,number of URLs in the message.
+# Delivery
+mdo:email_event,deliveryAction,str,delivery action taken (Delivered- Blocked- Quarantined).
+mdo:email_event,latestDeliveryLocation,str,current location (Inbox/folder- Quarantine- Junk- etc.).
+mdo:email_event,originalDeliveryLocation,str,initial delivery location if different from current.
+mdo:email_event,directionality,str,email direction: Inbound- Outbound- Intra-org.
+# Threat detection
+mdo:email_event,threats,str,detected threats if any.
+mdo:email_event,threatClassification,str,threat classification.
+mdo:email_event,detectionTechnologies,str,detection methods used.
+mdo:email_event,alertId,str,associated alert ID if triggered.
+# File/attachment analysis
+mdo:email_event,fileThreats,str,JSON array of file threats with filename- sha256- threatType- detectionTech.
+mdo:email_event,fileHash,str,SHA256 hash(es) of attachments.
+# URLs
+mdo:email_event,urls,str,JSON array of URLs with threatType and refanged url.
+mdo:email_event,urlDomains,str,comma-separated unique domains from URLs.
+# Policy overrides
+mdo:email_event,finalSystemOverride,str,final override decision (None- Allowed by policy- etc.).
+mdo:email_event,tenantSystemOverride,str,tenant-level policy overrides.
+mdo:email_event,userSystemOverride,str,user-level policy overrides (safe sender lists- etc.).
+# Tags
+mdo:email_event,senderTags,str,sender tags if any.
+mdo:email_event,recipientTags,str,recipient tags (Priority account- Department Directors- etc.).
+# Mail flow
+mdo:email_event,exchangeTransportRule,str,Exchange transport rule that was applied.
+mdo:email_event,connector,str,mail connector used (e.g. Area 1 Inbound Connector).
+mdo:email_event,context,str,additional context.
+mdo:email_event,dlpRule,str,Data Loss Prevention rule if triggered.
+# Flags
+mdo:email_event,firstContact,bool,True if this is first contact from sender (spear phishing indicator).
+
+# =============================================================================
+# ROADMAP - NOT YET IMPLEMENTED
+# The following data types from Plaso are relevant for Windows forensics
+# but not yet implemented in ct-to-timesketch
+# =============================================================================
+# windows:timeline:generic - Requires ActivitiesCache.db SQLite parsing (IMPLEMENTED)
+# windows:timeline:user_engaged - Requires ActivitiesCache.db SQLite parsing (IMPLEMENTED)
+# windows:user_access_logging:clients - Requires UAL ESE database parsing (IMPLEMENTED)
+# windows:user_access_logging:dns - Requires UAL ESE database parsing (IMPLEMENTED)
+# windows:restore_point - Requires restore point parsing
+

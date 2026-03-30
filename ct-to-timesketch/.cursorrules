@@ -1,0 +1,64 @@
+# CyberTriage to Timesketch - Cursor Rules
+# =========================================
+
+## Project Overview
+Pure Go tool that converts CyberTriage forensic capture files (.json.gz) to Timesketch JSONL format for timeline analysis. Uses a custom byte-level streaming JSON parser for memory-efficient processing of multi-GB captures.
+
+## Development Guidelines
+
+### Go Environment
+- Go 1.21+ required
+- Module path: `github.com/NCLGISA/ct-to-timesketch`
+- Build: `go build -o ct-to-timesketch ./cmd/ct-to-timesketch`
+
+### Code Style
+- Follow standard Go conventions (gofmt, golint)
+- Use type hints and error returns consistently
+- Document exported functions with godoc comments
+
+### Project Structure
+- Entry point: `cmd/ct-to-timesketch/main.go`
+- Streaming parser: `internal/scanner/`
+- Event converter: `internal/converter/`
+- Forensic extractors: `internal/extractors/` (one package per extractor)
+- Hayabusa post-processing: `internal/postprocess/`
+- Cache/decompression: `internal/cache/`
+- Progress output: `internal/progress/`
+- Post-processing scripts: `scripts/` (Python utilities for JSONL analysis)
+- Data type schemas: `schemas/`
+
+### Sensitive Data Handling
+- NEVER commit capture files (*.json.gz) - they contain forensic data
+- NEVER commit generated reports (*.jsonl, *.html)
+- NEVER commit the compiled binary (ct-to-timesketch)
+- NEVER commit test_results.md (contains client hostnames)
+- Test data should stay in ignored directories (captures/, reports/, outdated/, artifacts/)
+
+### Running the Tool
+```bash
+# Build
+go build -o ct-to-timesketch ./cmd/ct-to-timesketch
+
+# Run (all extractors run automatically)
+./ct-to-timesketch captures/sample.json.gz
+
+# With Hayabusa threat detection
+./ct-to-timesketch captures/sample.json.gz --hayabusa
+
+# Cloud-only modes
+./ct-to-timesketch captures/entra_export.json.gz --entra
+./ct-to-timesketch captures/mdo_export.json.gz --mdo
+```
+
+### Testing Changes
+- Run full test suite: `./test_all_captures.sh`
+- Test against individual captures in `captures/`
+- Output goes to `reports/<hostname>_timeline.jsonl`
+
+### Versioning
+- CalVer format: YYYY.MM.DD.BUILD (e.g., 2026.03.10.1)
+
+### Git Workflow
+- Work on feature branches for new extractors
+- Keep commits focused and well-documented
+- The .gitignore is configured to protect sensitive data

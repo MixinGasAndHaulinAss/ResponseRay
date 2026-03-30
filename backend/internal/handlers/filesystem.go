@@ -44,7 +44,7 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := r.URL.Query().Get("path")
+	path := strings.ToLower(r.URL.Query().Get("path"))
 	if path == "" {
 		path = "/"
 	}

@@ -1,6 +1,6 @@
 # ResponseRay
 
-A web-based Digital Forensics and Incident Response (DFIR) platform for investigating Windows endpoints. Upload CyberTriage forensic captures, automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
+A web-based Digital Forensics and Incident Response (DFIR) platform for investigating Windows endpoints. Upload CyberTriage forensic captures or ResponseRay Collector archives, automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
 
 ## Architecture
 
@@ -818,9 +818,88 @@ All errors return JSON-compatible text with an appropriate HTTP status code:
 | `404` | Not found — resource does not exist |
 | `500` | Internal server error |
 
+## Windows Artifact Collector
+
+A standalone C# console application that collects forensic artifacts from a live Windows system with full CyberTriage parity.
+
+### Features
+
+- **No installation required** — single self-contained `.exe`, runs from USB or network share
+- **Volume Shadow Copy** — accesses locked files (registry hives, SRUM, $MFT, browser DBs)
+- **Full artifact collection** — event logs, registry, prefetch, SRUM, browser history, timeline, WMI, recycle bin, scheduled tasks, PowerShell history, LNK files, DHCP logs
+- **Raw $MFT** — captures the Master File Table for comprehensive file timeline analysis
+- **Live system state** — running processes (with hashes), network connections, DNS/ARP cache, routing table, logon sessions, user accounts, services, startup items, attached devices
+- **Structured output** — ZIP archive with organized subdirectories and `manifest.json`
+
+### Requirements
+
+- **Administrator** privileges (for VSS, $MFT access, and live enumeration)
+- **.NET 8 SDK** for building (runtime is self-contained in the published executable)
+- Windows 10/11 or Windows Server 2016+
+
+### Building
+
+```bash
+cd collector/src/ResponseRayCollector
+dotnet publish -c Release -r win-x64 --self-contained -o ../../../publish
+```
+
+The output is a single executable at `publish/ResponseRayCollector.exe`.
+
+### Usage
+
+```bash
+# Basic collection (output to current directory)
+ResponseRayCollector.exe
+
+# Custom output path
+ResponseRayCollector.exe --output D:\collections
+
+# Skip specific collectors
+ResponseRayCollector.exe --skip mft,evtx
+```
+
+### Output Format
+
+The collector produces a `{hostname}_{timestamp}.zip` containing:
+
+```
+manifest.json          — collection metadata + file inventory
+artifacts/
+  evtx/                — Windows Event Log files
+  registry/            — SAM, SYSTEM, SOFTWARE, SECURITY, NTUSER.DAT, etc.
+  prefetch/            — .pf files
+  srum/                — SRUDB.dat
+  browser/             — Chrome/Edge/Firefox history databases
+  timeline/            — ActivitiesCache.db
+  wmi/                 — OBJECTS.DATA
+  recyclebin/          — $I metadata files
+  tasks/               — Scheduled task XML files
+  powershell/          — ConsoleHost_history.txt per user
+  lnk/                 — .lnk shortcut files
+  dhcp/                — DHCP server logs
+mft/
+  $MFT                 — Raw Master File Table
+live/
+  processes.json       — Running processes with MD5 hashes
+  connections.json     — TCP/UDP connections with owning PIDs
+  dns_cache.json       — DNS resolver cache
+  arp_cache.json       — ARP table
+  routing_table.json   — IP routing table
+  logon_sessions.json  — Active logon sessions
+  user_accounts.json   — Local user accounts
+  services.json        — Windows services
+  startup_items.json   — Autostart entries
+  devices.json         — Attached devices (USB, PnP)
+```
+
+### Upload to ResponseRay
+
+Upload the `.zip` file directly through the ResponseRay web UI. The worker automatically detects collector archives (by `.zip` extension), extracts them, and invokes `ct-to-timesketch` in `--directory` mode.
+
 ## Versioning
 
-CalVer format: `Year.Month.Day.Revision` (e.g., `2026.3.24.1`). The version is displayed on the login screen, home page, and dashboard.
+CalVer format: `Year.Month.Day.Revision` (e.g., `2026.3.25.1`). The version is displayed on the login screen, home page, and dashboard.
 
 ## License
 

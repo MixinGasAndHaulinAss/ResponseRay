@@ -1,0 +1,98 @@
+# CyberTriage Project .gitignore
+# ================================
+# IMPORTANT: This project processes forensic data that may contain
+# sensitive information (usernames, passwords, PII, browsing history, etc.)
+# All capture files, reports, and extracted data are excluded by default.
+
+# =============================================================================
+# SENSITIVE FORENSIC DATA - ALWAYS EXCLUDED
+# =============================================================================
+
+# CyberTriage capture files (contain full system forensic data)
+captures/
+*.json.gz
+
+# CloudRules threat detection rules (NOT sensitive - these are public rule definitions)
+!cloudrules/
+!cloudrules/*.json.gz
+
+# Generated timeline reports (contain extracted forensic artifacts)
+reports/
+
+# Extracted/decompressed data
+*.cache
+*.index.json
+extracted/
+
+# SQLite databases (may contain browser history, credentials)
+*.db
+*.sqlite
+*.sqlite3
+
+# Outdated folder (contains old captures and extracted data)
+outdated/
+
+# Raw forensic exports
+*_export.txt
+*_section.json
+
+# Native artifact exports (forensic files extracted from captures)
+artifacts/
+
+# Test results (contain client hostnames and forensic metadata)
+test_results.md
+
+# =============================================================================
+# Go Build Artifacts
+# =============================================================================
+bin/
+/ct-to-timesketch
+
+# =============================================================================
+# Python (scripts/ utilities)
+# =============================================================================
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# =============================================================================
+# IDE and Editors
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+.cursor/
+
+# =============================================================================
+# OS Generated
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# Temporary and Log Files
+# =============================================================================
+*.tmp
+*.temp
+*.log
+*.bak
+
+# =============================================================================
+# Backups (optional - uncomment to include reference backups)
+# =============================================================================
+# By default, backups are excluded as they may contain old sensitive code
+backups/

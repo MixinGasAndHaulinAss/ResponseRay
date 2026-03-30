@@ -1,12 +1,15 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -124,11 +127,42 @@ func processUpload(ctx context.Context, pool *pgxpool.Pool, rc *redis.Client, in
 
 	outputPath := filepath.Join(outputDir, "timeline.jsonl")
 
+	isCollectorZip := strings.HasSuffix(strings.ToLower(filename), ".zip")
+
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		cmd := exec.CommandContext(ctx, ctBinary, inputPath,
+		var cmd *exec.Cmd
+
+		if isCollectorZip {
+			// ResponseRay Collector .zip -- extract and use --directory mode
+			extractDir := filepath.Join(uploadDir, uploadID.String(), "extracted")
+			os.MkdirAll(extractDir, 0755)
+
+			log.Printf("Extracting collector archive %s...", filename)
+			if err := extractZip(inputPath, extractDir); err != nil {
+				setError(ctx, pool, rc, uploadID, fmt.Sprintf("zip extraction failed: %v", err))
+				return fmt.Errorf("zip extraction: %w", err)
+			}
+
+		// Find the actual directory containing manifest.json
+		manifestDir := findManifestDir(extractDir)
+		if manifestDir == "" {
+			setError(ctx, pool, rc, uploadID, "manifest.json not found in zip archive")
+			return fmt.Errorf("manifest.json not found in extracted zip")
+		}
+
+		cmd = exec.CommandContext(ctx, ctBinary,
+			"--directory", manifestDir,
 			"--output", outputPath,
 			"--artifacts-dir", artifactDir,
 			"--cloudrules")
+		} else {
+			// CyberTriage .json.gz -- existing flow
+			cmd = exec.CommandContext(ctx, ctBinary, inputPath,
+				"--output", outputPath,
+				"--artifacts-dir", artifactDir,
+				"--cloudrules")
+		}
+
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
@@ -200,4 +234,71 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// findManifestDir walks the extracted directory to find manifest.json,
+// handling zips that contain a top-level wrapper folder.
+func findManifestDir(root string) string {
+	if _, err := os.Stat(filepath.Join(root, "manifest.json")); err == nil {
+		return root
+	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			candidate := filepath.Join(root, e.Name())
+			if _, err := os.Stat(filepath.Join(candidate, "manifest.json")); err == nil {
+				return candidate
+			}
+		}
+	}
+	return ""
+}
+
+func extractZip(zipPath, destDir string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		target := filepath.Join(destDir, f.Name)
+
+		// Prevent zip slip
+		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)+string(os.PathSeparator)) {
+			continue
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(target, 0755)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return err
+		}
+
+		zrc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("open zip entry %s: %w", f.Name, err)
+		}
+
+		dst, err := os.Create(target)
+		if err != nil {
+			zrc.Close()
+			return fmt.Errorf("create %s: %w", target, err)
+		}
+
+		_, err = io.Copy(dst, zrc)
+		zrc.Close()
+		dst.Close()
+		if err != nil {
+			return fmt.Errorf("copy %s: %w", f.Name, err)
+		}
+	}
+	return nil
 }
