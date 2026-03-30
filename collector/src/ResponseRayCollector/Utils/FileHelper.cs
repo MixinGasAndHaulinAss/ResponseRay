@@ -1,9 +1,71 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Microsoft.Win32.SafeHandles;
 
 namespace ResponseRayCollector.Utils;
 
 public static class FileHelper
 {
+    #region P/Invoke
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    private const uint GENERIC_READ = 0x80000000;
+    private const uint FILE_SHARE_READ = 0x01;
+    private const uint FILE_SHARE_WRITE = 0x02;
+    private const uint FILE_SHARE_DELETE = 0x04;
+    private const uint OPEN_EXISTING = 3;
+    private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+    private static readonly IntPtr INVALID_HANDLE_VALUE = new(-1);
+
+    #endregion
+
+    /// <summary>
+    /// Copies a file using CreateFile with FILE_FLAG_BACKUP_SEMANTICS.
+    /// When SeBackupPrivilege is enabled this bypasses all file locks and
+    /// NTFS security, making it the primary method for locked hives,
+    /// browser databases, and other in-use files.
+    /// </summary>
+    public static void BackupCopy(string source, string dest)
+    {
+        var dir = Path.GetDirectoryName(dest);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        var hFile = CreateFile(source, GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
+
+        if (hFile == IntPtr.Zero || hFile == INVALID_HANDLE_VALUE)
+        {
+            int err = Marshal.GetLastWin32Error();
+            throw new IOException($"CreateFile failed for {source} (Win32={err})");
+        }
+
+        try
+        {
+            using var safeHandle = new SafeFileHandle(hFile, ownsHandle: false);
+            using var src = new FileStream(safeHandle, FileAccess.Read, 1024 * 1024, false);
+            using var dst = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024);
+            src.CopyTo(dst, 1024 * 1024);
+        }
+        finally
+        {
+            CloseHandle(hFile);
+        }
+    }
+
     public static void SafeCopy(string source, string destination)
     {
         var dir = Path.GetDirectoryName(destination);
@@ -16,10 +78,7 @@ public static class FileHelper
         }
         catch (IOException)
         {
-            // File is locked (e.g. browser History DB) -- read with shared access
-            using var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var dst = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
-            src.CopyTo(dst);
+            BackupCopy(source, destination);
         }
     }
 
@@ -92,15 +151,5 @@ public static class FileHelper
                 continue;
             yield return dir;
         }
-    }
-
-    public static string ResolveVssPath(string vssRoot, string originalPath)
-    {
-        var driveLetter = Path.GetPathRoot(originalPath);
-        if (string.IsNullOrEmpty(driveLetter))
-            return originalPath;
-
-        var relativePath = originalPath.Substring(driveLetter.Length);
-        return Path.Combine(vssRoot, relativePath);
     }
 }

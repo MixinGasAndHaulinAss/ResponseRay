@@ -21,13 +21,9 @@ public class TimelineCollector : ICollector
             var username = Path.GetFileName(userDir)!;
             var cdpDir = Path.Combine(userDir, "AppData", "Local", "ConnectedDevicesPlatform");
 
-            // Resolve via VSS if available (database may be locked)
-            var srcCdpDir = !string.IsNullOrEmpty(context.VssRoot)
-                ? FileHelper.ResolveVssPath(context.VssRoot, cdpDir) : cdpDir;
+            if (!Directory.Exists(cdpDir)) continue;
 
-            if (!Directory.Exists(srcCdpDir)) continue;
-
-            foreach (var subDir in Directory.EnumerateDirectories(srcCdpDir))
+            foreach (var subDir in Directory.EnumerateDirectories(cdpDir))
             {
                 var dbPath = Path.Combine(subDir, "ActivitiesCache.db");
                 if (!File.Exists(dbPath)) continue;
@@ -36,7 +32,7 @@ public class TimelineCollector : ICollector
                 {
                     var subDirName = Path.GetFileName(subDir);
                     var dest = Path.Combine(destDir, $"{username}_{subDirName}_ActivitiesCache.db");
-                    File.Copy(dbPath, dest, overwrite: true);
+                    FileHelper.BackupCopy(dbPath, dest);
                     var size = new FileInfo(dest).Length;
                     context.CollectedFiles.Add(new CollectedFileEntry
                     {

@@ -36,27 +36,15 @@ public static class Program
         Directory.CreateDirectory(collectionDir);
         var overallSw = Stopwatch.StartNew();
 
-        using var vss = new VssManager();
-        var vssOk = vss.CreateSnapshot();
-        var vssRoot = vss.ShadowPath ?? "";
-
-        if (!vssOk)
-        {
-            ConsoleOutput.Warning("VSS failed -- locked files (registry, SRUM, $MFT) may be inaccessible.");
-            ConsoleOutput.Warning("Continuing with direct file access where possible...");
-        }
-
         var context = new CollectionContext
         {
             OutputDir = collectionDir,
-            VssRoot = vssRoot,
             Hostname = hostname,
             CollectionTime = timestamp
         };
 
         ICollector[] collectors =
         [
-            // File artifact collectors
             new EventLogCollector(),
             new RegistryCollector(),
             new PrefetchCollector(),
@@ -70,7 +58,6 @@ public static class Program
             new LnkCollector(),
             new DhcpCollector(),
             new MftCollector(),
-            // Live system collectors
             new ProcessCollector(),
             new NetworkCollector(),
             new DnsCacheCollector(),
@@ -136,7 +123,6 @@ public static class Program
             }
         }
 
-        // Build file inventory from collected files
         foreach (var entry in context.CollectedFiles)
         {
             manifest.Files.Add(new CollectionManifest.FileEntry
@@ -155,7 +141,6 @@ public static class Program
         var manifestPath = Path.Combine(collectionDir, "manifest.json");
         manifest.Save(manifestPath);
 
-        // Package as ZIP
         ConsoleOutput.Section("Packaging");
         var zipName = $"{hostname}_{timestamp:yyyyMMdd_HHmmss}.zip";
         var zipPath = Path.Combine(outputPath, zipName);
@@ -168,7 +153,6 @@ public static class Program
         var zipSize = new FileInfo(zipPath).Length;
         overallSw.Stop();
 
-        // Cleanup temp directory
         try { Directory.Delete(collectionDir, recursive: true); }
         catch { /* best effort */ }
 

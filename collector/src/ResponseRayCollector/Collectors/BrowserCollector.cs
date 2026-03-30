@@ -19,24 +19,19 @@ public class BrowserCollector : ICollector
         {
             var username = Path.GetFileName(userDir)!;
 
-            // Chrome profiles
             CollectBrowserProfiles(context, userDir, username,
                 Path.Combine("AppData", "Local", "Google", "Chrome", "User Data"),
                 "chrome", destDir, ref count, ref bytes);
 
-            // Edge profiles
             CollectBrowserProfiles(context, userDir, username,
                 Path.Combine("AppData", "Local", "Microsoft", "Edge", "User Data"),
                 "edge", destDir, ref count, ref bytes);
 
-            // Firefox profiles
             var ffProfilesDir = Path.Combine(userDir, "AppData", "Roaming", "Mozilla", "Firefox", "Profiles");
-            var ffSrc = !string.IsNullOrEmpty(context.VssRoot)
-                ? FileHelper.ResolveVssPath(context.VssRoot, ffProfilesDir) : ffProfilesDir;
 
-            if (Directory.Exists(ffSrc))
+            if (Directory.Exists(ffProfilesDir))
             {
-                foreach (var profileDir in Directory.EnumerateDirectories(ffSrc))
+                foreach (var profileDir in Directory.EnumerateDirectories(ffProfilesDir))
                 {
                     var profileName = Path.GetFileName(profileDir);
                     var placesPath = Path.Combine(profileDir, "places.sqlite");
@@ -45,7 +40,7 @@ public class BrowserCollector : ICollector
                     try
                     {
                         var dest = Path.Combine(destDir, "firefox", $"{username}_{profileName}_places.sqlite");
-                        FileHelper.SafeCopy(placesPath, dest);
+                        FileHelper.BackupCopy(placesPath, dest);
                         var size = new FileInfo(dest).Length;
                         context.CollectedFiles.Add(new CollectedFileEntry
                         {
@@ -75,25 +70,22 @@ public class BrowserCollector : ICollector
         string relBrowserPath, string browserName, string destDir, ref int count, ref long bytes)
     {
         var browserDir = Path.Combine(userDir, relBrowserPath);
-        var src = !string.IsNullOrEmpty(context.VssRoot)
-            ? FileHelper.ResolveVssPath(context.VssRoot, browserDir) : browserDir;
 
-        if (!Directory.Exists(src)) return;
+        if (!Directory.Exists(browserDir)) return;
 
-        // Check Default profile and numbered profiles
-        foreach (var profileDir in Directory.EnumerateDirectories(src).Append(src))
+        foreach (var profileDir in Directory.EnumerateDirectories(browserDir).Append(browserDir))
         {
             var historyPath = Path.Combine(profileDir, "History");
             if (!File.Exists(historyPath)) continue;
 
             var profileName = Path.GetFileName(profileDir);
-            if (profileName == Path.GetFileName(src))
+            if (profileName == Path.GetFileName(browserDir))
                 profileName = "Default";
 
             try
             {
                 var dest = Path.Combine(destDir, browserName, $"{username}_{profileName}_History");
-                FileHelper.SafeCopy(historyPath, dest);
+                FileHelper.BackupCopy(historyPath, dest);
                 var size = new FileInfo(dest).Length;
                 context.CollectedFiles.Add(new CollectedFileEntry
                 {

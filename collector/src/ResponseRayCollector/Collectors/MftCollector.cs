@@ -119,35 +119,15 @@ public class MftCollector : ICollector
         EnablePrivilege("SeBackupPrivilege");
         EnablePrivilege("SeManageVolumePrivilege");
 
-        // Strategy 0: Raw volume read (TSK approach -- reads MFT at disk offset, bypasses NTFS metafile restrictions)
+        // Strategy 0: Raw volume read (reads MFT at disk offset, bypasses NTFS metafile restrictions)
         if (TryRawVolumeRead(dest))
-            return MakeResult(sw, dest, context, "raw volume (TSK)");
+            return MakeResult(sw, dest, context, "raw volume");
 
-        // Strategy 1: VSS snapshot
-        if (!string.IsNullOrEmpty(context.VssRoot))
-        {
-            var vssMft = Path.Combine(context.VssRoot, "$MFT");
-            try
-            {
-                if (File.Exists(vssMft))
-                {
-                    FileHelper.SafeCopy(vssMft, dest);
-                    if (new FileInfo(dest).Length > 0)
-                        return MakeResult(sw, dest, context, "VSS");
-                }
-            }
-            catch (Exception ex) { _errors.Add($"VSS: {ex.Message}"); }
-        }
-        else
-        {
-            _errors.Add("VSS: not available");
-        }
-
-        // Strategy 2: NtCreateFile (native NT API)
+        // Strategy 1: NtCreateFile (native NT API)
         if (TryNtCreateFileCopy(dest))
             return MakeResult(sw, dest, context, "NtCreateFile");
 
-        // Strategy 3: Direct FileStream read
+        // Strategy 2: Direct FileStream read
         if (TryDirectRead(dest))
             return MakeResult(sw, dest, context, "direct read");
 

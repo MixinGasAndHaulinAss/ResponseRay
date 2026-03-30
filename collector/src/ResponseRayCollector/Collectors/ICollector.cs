@@ -10,7 +10,6 @@ public interface ICollector
 public class CollectionContext
 {
     public required string OutputDir { get; init; }
-    public required string VssRoot { get; init; }
     public required string Hostname { get; init; }
     public required DateTime CollectionTime { get; init; }
     public List<CollectedFileEntry> CollectedFiles { get; } = new();

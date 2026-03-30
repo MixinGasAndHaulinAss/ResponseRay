@@ -16,16 +16,8 @@ public class SrumCollector : ICollector
 
         var originalPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
             "System32", "SRU", "SRUDB.dat");
-        var source = originalPath;
 
-        if (!string.IsNullOrEmpty(context.VssRoot))
-        {
-            var vssPath = FileHelper.ResolveVssPath(context.VssRoot, originalPath);
-            if (File.Exists(vssPath))
-                source = vssPath;
-        }
-
-        if (!File.Exists(source))
+        if (!File.Exists(originalPath))
         {
             return new CollectorResult { CollectorName = Name, Elapsed = sw.Elapsed };
         }
@@ -33,7 +25,7 @@ public class SrumCollector : ICollector
         try
         {
             var dest = Path.Combine(destDir, "SRUDB.dat");
-            FileHelper.SafeCopy(source, dest);
+            FileHelper.BackupCopy(originalPath, dest);
             var size = new FileInfo(dest).Length;
             context.CollectedFiles.Add(new CollectedFileEntry
             {
