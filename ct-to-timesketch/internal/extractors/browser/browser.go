@@ -29,7 +29,7 @@ func (e *Extractor) Extract(cachePath string, conv *converter.Converter, idx *ca
 	added := 0
 
 	// Chrome/Edge History files
-	chromFiles, _ := idx.GetCollectedFiles(`^History$`, "")
+	chromFiles, _ := idx.GetCollectedFiles(`History$`, "")
 	for _, f := range chromFiles {
 		n, err := parseChromium(f, conv)
 		if err != nil {
@@ -107,6 +107,8 @@ func parseChromium(f cache.CollectedFile, conv *converter.Converter) (int, error
 			browser = "Edge"
 		}
 
+		userID := extractUser(f.Filename)
+
 		msg := fmt.Sprintf("%s: %s", browser, url)
 		if title != "" {
 			msg = fmt.Sprintf("%s: %s (%s)", browser, title, url)
@@ -119,6 +121,7 @@ func parseChromium(f cache.CollectedFile, conv *converter.Converter) (int, error
 				"title":       title,
 				"visit_count": visitCount,
 				"browser":     browser,
+				"user_id":     userID,
 				"source_path": f.Path,
 			}) {
 			added++
@@ -187,6 +190,14 @@ func parseFirefox(f cache.CollectedFile, conv *converter.Converter) (int, error)
 		}
 	}
 	return added, nil
+}
+
+// extractUser pulls the username from collector-style filenames like "lsteese_Default_History".
+func extractUser(filename string) string {
+	if idx := strings.Index(filename, "_"); idx > 0 {
+		return filename[:idx]
+	}
+	return ""
 }
 
 func resolveDBPath(f cache.CollectedFile, tmpPattern string) (string, func(), error) {
