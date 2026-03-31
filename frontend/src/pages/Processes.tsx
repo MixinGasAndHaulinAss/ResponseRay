@@ -103,14 +103,14 @@ const columns = [
 ]
 
 const tabs = [
-  { key: 'all', label: 'All', eventTypes: ['windows_process', 'process_execution', 'registry_bam', 'registry_amcache', 'registry_userassist'] },
-  { key: 'created', label: 'Process Created (4688)', eventTypes: ['windows_process'] },
-  { key: 'execution', label: 'Execution Evidence', eventTypes: ['process_execution'] },
+  { key: 'all', label: 'All', eventTypes: ['windows_process', 'running_process', 'process_execution', 'prefetch_execution', 'registry_bam', 'registry_amcache', 'registry_userassist'] },
+  { key: 'created', label: 'Process Created (4688)', eventTypes: ['windows_process', 'running_process'] },
+  { key: 'execution', label: 'Execution Evidence', eventTypes: ['process_execution', 'prefetch_execution'] },
   { key: 'bam', label: 'BAM', eventTypes: ['registry_bam'] },
   { key: 'amcache', label: 'Amcache', eventTypes: ['registry_amcache'] },
   { key: 'userassist', label: 'UserAssist', eventTypes: ['registry_userassist'] },
 ]
 
 export default function Processes() {
-  return <EventView title="Processes & Execution" eventTypes={['windows_process', 'process_execution', 'registry_bam', 'registry_amcache', 'registry_userassist']} columns={columns} tabs={tabs} />
+  return <EventView title="Processes & Execution" eventTypes={['windows_process', 'running_process', 'process_execution', 'prefetch_execution', 'registry_bam', 'registry_amcache', 'registry_userassist']} columns={columns} tabs={tabs} />
 }

@@ -8,7 +8,13 @@ public class RegistryCollector : ICollector
     public string Name => "Registry";
     public string Description => "Registry hives (SAM, SYSTEM, SOFTWARE, SECURITY, NTUSER.DAT, UsrClass.dat, Amcache.hve)";
 
-    private static readonly string[] SystemHives = ["SAM", "SYSTEM", "SOFTWARE", "SECURITY"];
+    private static readonly (string HiveName, string RegKey)[] SystemHives =
+    [
+        ("SAM", @"HKLM\SAM"),
+        ("SYSTEM", @"HKLM\SYSTEM"),
+        ("SOFTWARE", @"HKLM\SOFTWARE"),
+        ("SECURITY", @"HKLM\SECURITY"),
+    ];
 
     public CollectorResult Collect(CollectionContext context)
     {
@@ -18,16 +24,25 @@ public class RegistryCollector : ICollector
         int count = 0;
         long bytes = 0;
 
-        var configDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-            "System32", "config");
-
-        foreach (var hive in SystemHives)
+        foreach (var (hiveName, regKey) in SystemHives)
         {
-            var src = Path.Combine(configDir, hive);
-            var dest = Path.Combine(destDir, hive);
-            if (TryCapture(src, dest, src, "registry", context, ref count, ref bytes))
-                ConsoleOutput.Status($"  {hive}: captured");
+            var dest = Path.Combine(destDir, hiveName);
+            var originalPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                "System32", "config", hiveName);
+
+            if (TryCaptureViaRegSave(regKey, dest, originalPath, context, ref count, ref bytes))
+            {
+                ConsoleOutput.Status($"  {hiveName}: captured (reg save)");
+            }
+            else if (TryCaptureViaBackup(originalPath, dest, originalPath, context, ref count, ref bytes))
+            {
+                ConsoleOutput.Status($"  {hiveName}: captured (backup)");
+            }
+            else
+            {
+                ConsoleOutput.Warning($"  {hiveName}: all capture methods failed");
+            }
         }
 
         // Amcache
@@ -35,8 +50,14 @@ public class RegistryCollector : ICollector
             Environment.GetFolderPath(Environment.SpecialFolder.Windows),
             "AppCompat", "Programs", "Amcache.hve");
         var amcacheDest = Path.Combine(destDir, "Amcache.hve");
-        if (TryCapture(amcachePath, amcacheDest, amcachePath, "registry", context, ref count, ref bytes))
-            ConsoleOutput.Status("  Amcache.hve: captured");
+        if (TryCaptureViaRegSave(@"HKLM\SOFTWARE\Microsoft\Amcache", amcacheDest, amcachePath, context, ref count, ref bytes))
+        {
+            ConsoleOutput.Status("  Amcache.hve: captured (reg save)");
+        }
+        else if (TryCaptureViaBackup(amcachePath, amcacheDest, amcachePath, context, ref count, ref bytes))
+        {
+            ConsoleOutput.Status("  Amcache.hve: captured (backup)");
+        }
 
         // Per-user hives
         foreach (var userDir in FileHelper.GetUserProfilePaths())
@@ -45,12 +66,14 @@ public class RegistryCollector : ICollector
 
             var ntuserPath = Path.Combine(userDir, "NTUSER.DAT");
             var ntuserDest = Path.Combine(destDir, $"{username}_NTUSER.DAT");
-            if (TryCapture(ntuserPath, ntuserDest, ntuserPath, "registry", context, ref count, ref bytes))
+            if (TryCaptureViaBackup(ntuserPath, ntuserDest, ntuserPath, context, ref count, ref bytes))
                 ConsoleOutput.Status($"  {username} NTUSER.DAT: captured");
+            else
+                ConsoleOutput.Warning($"  {username} NTUSER.DAT: capture failed");
 
             var usrClassPath = Path.Combine(userDir, "AppData", "Local", "Microsoft", "Windows", "UsrClass.dat");
             var usrClassDest = Path.Combine(destDir, $"{username}_UsrClass.dat");
-            if (TryCapture(usrClassPath, usrClassDest, usrClassPath, "registry", context, ref count, ref bytes))
+            if (TryCaptureViaBackup(usrClassPath, usrClassDest, usrClassPath, context, ref count, ref bytes))
                 ConsoleOutput.Status($"  {username} UsrClass.dat: captured");
         }
 
@@ -63,21 +86,60 @@ public class RegistryCollector : ICollector
         };
     }
 
-    private static bool TryCapture(string source, string dest, string originalPath,
-        string category, CollectionContext context, ref int count, ref long bytes)
+    private static bool TryCaptureViaRegSave(string regKey, string dest, string originalPath,
+        CollectionContext context, ref int count, ref long bytes)
     {
-        if (!File.Exists(source))
-            return false;
-
         try
         {
-            FileHelper.BackupCopy(source, dest);
+            var psi = new ProcessStartInfo("reg", $"save \"{regKey}\" \"{dest}\" /y")
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null) return false;
+            proc.WaitForExit(30_000);
+
+            if (proc.ExitCode != 0 || !File.Exists(dest))
+                return false;
+
             var size = new FileInfo(dest).Length;
+            if (size == 0) { try { File.Delete(dest); } catch { } return false; }
+
             context.CollectedFiles.Add(new CollectedFileEntry
             {
                 OriginalPath = originalPath,
                 RelativePath = Path.GetRelativePath(context.OutputDir, dest),
-                Category = category,
+                Category = "registry",
+                Size = size
+            });
+            count++;
+            bytes += size;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ConsoleOutput.Warning($"  reg save {regKey}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryCaptureViaBackup(string source, string dest, string originalPath,
+        CollectionContext context, ref int count, ref long bytes)
+    {
+        try
+        {
+            FileHelper.BackupCopy(source, dest);
+            var size = new FileInfo(dest).Length;
+            if (size == 0) { try { File.Delete(dest); } catch { } return false; }
+
+            context.CollectedFiles.Add(new CollectedFileEntry
+            {
+                OriginalPath = originalPath,
+                RelativePath = Path.GetRelativePath(context.OutputDir, dest),
+                Category = "registry",
                 Size = size
             });
             count++;
@@ -87,6 +149,7 @@ public class RegistryCollector : ICollector
         catch (Exception ex)
         {
             ConsoleOutput.Warning($"  {Path.GetFileName(source)}: {ex.Message}");
+            try { if (File.Exists(dest)) File.Delete(dest); } catch { }
             return false;
         }
     }

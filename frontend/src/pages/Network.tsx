@@ -72,13 +72,13 @@ const columns = [
 ]
 
 const tabs = [
-  { key: 'all', label: 'All Connections', eventTypes: ['network_connection'] },
+  { key: 'all', label: 'All Connections', eventTypes: ['network_connection', 'active_connection'] },
   { key: 'shares', label: 'Shares', eventTypes: ['network_share'] },
   { key: 'smb', label: 'SMB', eventTypes: ['windows_smb'] },
-  { key: 'dns', label: 'DNS', eventTypes: ['windows_dns'] },
-  { key: 'dhcp', label: 'DHCP', eventTypes: ['dhcp_event'] },
+  { key: 'dns', label: 'DNS', eventTypes: ['windows_dns', 'dns_cache_entry'] },
+  { key: 'dhcp', label: 'DHCP', eventTypes: ['dhcp_event', 'windows_dhcp'] },
 ]
 
 export default function Network() {
-  return <EventView title="Network" eventTypes={['network_connection', 'network_share', 'windows_smb', 'windows_dns', 'dhcp_event']} columns={columns} tabs={tabs} />
+  return <EventView title="Network" eventTypes={['network_connection', 'active_connection', 'network_share', 'windows_smb', 'windows_dns', 'dns_cache_entry', 'dhcp_event', 'windows_dhcp']} columns={columns} tabs={tabs} />
 }

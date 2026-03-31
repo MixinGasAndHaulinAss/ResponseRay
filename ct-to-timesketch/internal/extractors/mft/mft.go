@@ -55,31 +55,69 @@ func (e *Extractor) Name() string        { return "mft" }
 func (e *Extractor) Description() string { return "Raw $MFT parsing for file timeline with $SI and $FN timestamps" }
 
 func (e *Extractor) Extract(inputPath string, conv *converter.Converter, idx *cache.Index) (int, error) {
-	mftPath := findMFT(idx)
-	if mftPath == "" {
+	mftFiles := findAllMFTs(idx)
+	if len(mftFiles) == 0 {
 		return 0, nil
 	}
-	return ParseMFT(mftPath, conv)
+	totalAdded := 0
+	for _, mf := range mftFiles {
+		progress.Info(fmt.Sprintf("Processing $MFT for %s: drive", mf.driveLetter))
+		n, err := ParseMFT(mf.path, mf.driveLetter, conv)
+		if err != nil {
+			progress.Warning(fmt.Sprintf("$MFT %s: %v", mf.driveLetter, err))
+			continue
+		}
+		totalAdded += n
+	}
+	return totalAdded, nil
 }
 
-func findMFT(idx *cache.Index) string {
+type mftFile struct {
+	path        string
+	driveLetter string // e.g. "C", "D"
+}
+
+func findAllMFTs(idx *cache.Index) []mftFile {
 	if idx == nil {
-		return ""
+		return nil
 	}
-	candidates := []string{
+	var results []mftFile
+
+	// Primary C: drive MFT (backward compatible names)
+	for _, name := range []string{
 		filepath.Join(idx.ArtifactsDir, "mft", "$MFT"),
 		filepath.Join(idx.ArtifactsDir, "$MFT"),
-	}
-	for _, c := range candidates {
-		if fi, err := os.Stat(c); err == nil && fi.Size() > 0 {
-			return c
+	} {
+		if fi, err := os.Stat(name); err == nil && fi.Size() > 0 {
+			results = append(results, mftFile{path: name, driveLetter: "C"})
+			break
 		}
 	}
-	return ""
+
+	// Additional drives: $MFT_D, $MFT_E, etc.
+	mftDir := filepath.Join(idx.ArtifactsDir, "mft")
+	if entries, err := os.ReadDir(mftDir); err == nil {
+		for _, de := range entries {
+			name := de.Name()
+			if !strings.HasPrefix(name, "$MFT_") || len(name) != 6 {
+				continue
+			}
+			letter := string(name[5])
+			if letter >= "A" && letter <= "Z" {
+				full := filepath.Join(mftDir, name)
+				if fi, err := os.Stat(full); err == nil && fi.Size() > 0 {
+					results = append(results, mftFile{path: full, driveLetter: letter})
+				}
+			}
+		}
+	}
+
+	return results
 }
 
 // ParseMFT reads a raw $MFT file and generates $SI + $FN timeline events.
-func ParseMFT(path string, conv *converter.Converter) (int, error) {
+// driveLetter is used as the path prefix (e.g. "C" -> "C:\...").
+func ParseMFT(path string, driveLetter string, conv *converter.Converter) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open $MFT: %w", err)
@@ -152,7 +190,7 @@ func ParseMFT(path string, conv *converter.Converter) (int, error) {
 	// Pass 2: resolve paths and emit events
 	added := 0
 	for _, entry := range entries {
-		fullPath := resolvePath(entries, entry)
+		fullPath := resolvePath(entries, entry, driveLetter)
 		if fullPath == "" {
 			continue
 		}
@@ -380,7 +418,7 @@ func decodeUTF16(b []byte) string {
 	return string(utf16.Decode(u16))
 }
 
-func resolvePath(entries map[uint32]*mftEntry, entry *mftEntry) string {
+func resolvePath(entries map[uint32]*mftEntry, entry *mftEntry, driveLetter string) string {
 	parts := []string{entry.fileName}
 	seen := map[uint32]bool{entry.recordNum: true}
 	current := entry
@@ -404,17 +442,19 @@ func resolvePath(entries map[uint32]*mftEntry, entry *mftEntry) string {
 		current = parent
 	}
 
-	return "C:\\" + strings.Join(parts, "\\")
+	return driveLetter + ":\\" + strings.Join(parts, "\\")
 }
 
 // splitMFTPath converts a Windows-style MFT path like "C:\Windows\System32\file.dll"
 // into the (parentDir, baseName) pair the filesystem browser expects:
-//   file_path = "/windows/system32/"   (lowercase, forward slashes, no drive letter)
-//   file_name = "file.dll"             (original case preserved)
+//
+//	file_path = "/c/windows/system32/"   (lowercase, forward slashes, drive letter as top-level dir)
+//	file_name = "file.dll"              (original case preserved)
 func splitMFTPath(fullPath string) (string, string) {
 	normalized := strings.ReplaceAll(fullPath, "\\", "/")
 	if len(normalized) >= 2 && normalized[1] == ':' {
-		normalized = normalized[2:]
+		drive := strings.ToLower(string(normalized[0]))
+		normalized = "/" + drive + normalized[2:]
 	}
 	idx := strings.LastIndex(normalized, "/")
 	if idx < 0 {

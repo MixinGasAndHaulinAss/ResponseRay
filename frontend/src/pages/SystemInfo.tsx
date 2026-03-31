@@ -9,6 +9,7 @@ const columns = [
       const labels: Record<string, string> = {
         registry_software: 'Software',
         registry_networklist: 'Network Profile',
+        os_config: 'System Config',
       }
       const et = row.original.event_type
       const v = String(et || '')
@@ -65,11 +66,12 @@ const columns = [
 ]
 
 const tabs = [
-  { key: 'all', label: 'All', eventTypes: ['registry_software', 'registry_networklist'] },
+  { key: 'all', label: 'All', eventTypes: ['registry_software', 'registry_networklist', 'os_config'] },
   { key: 'software', label: 'Installed Software', eventTypes: ['registry_software'] },
   { key: 'network', label: 'Network Profiles', eventTypes: ['registry_networklist'] },
+  { key: 'sysconfig', label: 'System Config', eventTypes: ['os_config'] },
 ]
 
 export default function SystemInfo() {
-  return <EventView title="System Info" eventTypes={['registry_software', 'registry_networklist']} columns={columns} tabs={tabs} />
+  return <EventView title="System Info" eventTypes={['registry_software', 'registry_networklist', 'os_config']} columns={columns} tabs={tabs} />
 }

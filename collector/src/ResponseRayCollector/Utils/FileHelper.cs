@@ -21,15 +21,74 @@ public static class FileHelper
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr hObject);
 
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool LookupPrivilegeValue(string? lpSystemName, string lpName, out long lpLuid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool AdjustTokenPrivileges(IntPtr tokenHandle, bool disableAll,
+        ref TOKEN_PRIVILEGES newState, uint bufferLength, IntPtr prev, IntPtr returnLength);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetCurrentProcess();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TOKEN_PRIVILEGES
+    {
+        public uint PrivilegeCount;
+        public long Luid;
+        public uint Attributes;
+    }
+
     private const uint GENERIC_READ = 0x80000000;
     private const uint FILE_SHARE_READ = 0x01;
     private const uint FILE_SHARE_WRITE = 0x02;
     private const uint FILE_SHARE_DELETE = 0x04;
     private const uint OPEN_EXISTING = 3;
     private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+    private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+    private const uint TOKEN_QUERY = 0x0008;
+    private const uint SE_PRIVILEGE_ENABLED = 0x02;
     private static readonly IntPtr INVALID_HANDLE_VALUE = new(-1);
 
     #endregion
+
+    public static void EnablePrivilege(string privilegeName)
+    {
+        try
+        {
+            if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out var token))
+                return;
+            if (!LookupPrivilegeValue(null, privilegeName, out var luid))
+            {
+                CloseHandle(token);
+                return;
+            }
+
+            var tp = new TOKEN_PRIVILEGES { PrivilegeCount = 1, Luid = luid, Attributes = SE_PRIVILEGE_ENABLED };
+            AdjustTokenPrivileges(token, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+            CloseHandle(token);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Checks whether a file exists using CreateFile with FILE_FLAG_BACKUP_SEMANTICS.
+    /// Unlike File.Exists, this respects SeBackupPrivilege and can detect files
+    /// the caller lacks standard read permissions for (e.g. locked registry hives).
+    /// </summary>
+    public static bool FileExistsViaBackup(string path)
+    {
+        var h = CreateFile(path, GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            IntPtr.Zero, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
+        if (h == IntPtr.Zero || h == INVALID_HANDLE_VALUE)
+            return false;
+        CloseHandle(h);
+        return true;
+    }
 
     /// <summary>
     /// Copies a file using CreateFile with FILE_FLAG_BACKUP_SEMANTICS.

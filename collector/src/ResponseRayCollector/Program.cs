@@ -83,6 +83,9 @@ public static class Program
             UserProfiles = FileHelper.GetUserProfilePaths().Select(Path.GetFileName).Where(n => n != null).Cast<string>().ToList()
         };
 
+        FileHelper.EnablePrivilege("SeBackupPrivilege");
+        FileHelper.EnablePrivilege("SeManageVolumePrivilege");
+
         ConsoleOutput.Section("Collecting Artifacts");
 
         foreach (var collector in collectors)

@@ -65,15 +65,22 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dirSQL := fmt.Sprintf(`
-		SELECT DISTINCT data->>'file_name' AS name,
-		       COUNT(*) AS file_count
-		FROM events
-		WHERE site_id = $1
-		  AND event_type IN ('file_timeline', 'file_timeline_fn')
-		  AND data->>'file_path' = $2
-		  AND data->>'meta_type' = 'Dir'%s
-		GROUP BY data->>'file_name'
-		ORDER BY name`, uploadFilter)
+		SELECT d.name,
+		       (SELECT COUNT(DISTINCT data->>'file_name')
+		        FROM events
+		        WHERE site_id = $1
+		          AND event_type IN ('file_timeline', 'file_timeline_fn')
+		          AND data->>'file_path' = $2 || d.name || '/'%s
+		       ) AS file_count
+		FROM (
+		    SELECT DISTINCT data->>'file_name' AS name
+		    FROM events
+		    WHERE site_id = $1
+		      AND event_type IN ('file_timeline', 'file_timeline_fn')
+		      AND data->>'file_path' = $2
+		      AND data->>'meta_type' = 'Dir'%s
+		) d
+		ORDER BY d.name`, uploadFilter, uploadFilter)
 
 	dirRows, err := h.DB.Query(r.Context(), dirSQL, args...)
 	if err != nil {
@@ -154,10 +161,9 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 }
 
 // artifactDiskPath converts a UI path + filename to the on-disk artifact path.
-// UI paths look like "/Windows/System32/" and the artifact dir structure is
+// UI paths look like "/c/windows/system32/" where the first component is the
+// drive letter. The artifact dir structure is
 // {artifactsDir}/{uploadID}/{path without leading slash}/{filename}
-// ct-to-timesketch strips drive letters (C:\Windows -> C/Windows -> windows)
-// but may produce mixed case, so we try both the path as-is and lowercased.
 func (h *FilesystemHandler) artifactDiskPath(uploadID, uiPath, filename string) string {
 	rel := strings.TrimPrefix(uiPath, "/")
 	rel = strings.TrimSuffix(rel, "/")
@@ -170,6 +176,15 @@ func (h *FilesystemHandler) artifactDiskPath(uploadID, uiPath, filename string) 
 	lowered := filepath.Join(h.ArtifactsDir, uploadID, strings.ToLower(rel), filename)
 	if _, err := os.Stat(lowered); err == nil {
 		return lowered
+	}
+
+	// Try without the drive letter prefix (legacy artifacts stored without it)
+	parts := strings.SplitN(rel, "/", 2)
+	if len(parts) == 2 && len(parts[0]) == 1 {
+		withoutDrive := filepath.Join(h.ArtifactsDir, uploadID, parts[1], filename)
+		if _, err := os.Stat(withoutDrive); err == nil {
+			return withoutDrive
+		}
 	}
 
 	return primary
