@@ -21,11 +21,12 @@ interface EventViewProps {
   tabs?: { key: string; label: string; eventTypes?: string[]; channel?: string; dataFilter?: Record<string, string> }[]
   defaultSort?: string
   defaultDir?: string
+  sortableColumns?: string[]
 }
 
-const SORTABLE_COLUMNS = new Set(['datetime'])
+const DEFAULT_SORTABLE = new Set(['datetime'])
 
-export default function EventView({ title, eventTypes, columns, tabs, defaultSort, defaultDir }: EventViewProps) {
+export default function EventView({ title, eventTypes, columns, tabs, defaultSort, defaultDir, sortableColumns: extraSortable }: EventViewProps) {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
   const queryClient = useQueryClient()
   const { query: luceneQuery } = useQueryContext()
@@ -37,6 +38,12 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [sortField, setSortField] = useState(defaultSort || 'datetime')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>((defaultDir as 'asc' | 'desc') || 'desc')
+
+  const mergedSortable = useMemo(() => {
+    const set = new Set(DEFAULT_SORTABLE)
+    if (extraSortable) extraSortable.forEach(c => set.add(c))
+    return set
+  }, [extraSortable])
 
   const handleSortChange = (field: string) => {
     if (sortField === field) {
@@ -194,7 +201,7 @@ export default function EventView({ title, eventTypes, columns, tabs, defaultSor
         sortField={sortField}
         sortDir={sortDir}
         onSortChange={handleSortChange}
-        sortableColumns={SORTABLE_COLUMNS}
+        sortableColumns={mergedSortable}
       />
 
       {selectedEvent && (
