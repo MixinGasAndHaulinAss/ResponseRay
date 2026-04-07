@@ -52,6 +52,8 @@ const tabs = [
   { key: 'all', label: 'All', eventTypes: ['registry_service', 'windows_service'] },
   { key: 'registry', label: 'Installed (Registry)', eventTypes: ['registry_service'] },
   { key: 'runtime', label: 'Runtime Events', eventTypes: ['windows_service'] },
+  { key: 'running', label: 'Running', eventTypes: ['windows_service'], dataFilter: { param2: 'running' } },
+  { key: 'stopped', label: 'Stopped', eventTypes: ['windows_service'], dataFilter: { param2: 'stopped' } },
 ]
 
 export default function Services() {

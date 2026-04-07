@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, Hash, Globe, User } from 'lucide-react'
 import { useEvents } from '../hooks/useEvents'
@@ -39,9 +39,11 @@ const columns = [
 
 export default function SearchPage() {
   const { siteId, uploadId } = useParams<{ siteId: string; uploadId: string }>()
+  const [searchParams] = useSearchParams()
+  const initialQ = searchParams.get('q') || ''
   const queryClient = useQueryClient()
-  const [query, setQuery] = useState('')
-  const [activeQuery, setActiveQuery] = useState('')
+  const [query, setQuery] = useState(initialQ)
+  const [activeQuery, setActiveQuery] = useState(initialQ)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [findingEvent, setFindingEvent] = useState<Event | null>(null)
   const [findingFilter, setFindingFilter] = useState('')
