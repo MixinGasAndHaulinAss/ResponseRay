@@ -57,5 +57,5 @@ const tabs = [
 ]
 
 export default function Services() {
-  return <EventView title="Services" eventTypes={['registry_service', 'windows_service']} columns={columns} tabs={tabs} sortableColumns={['name']} />
+  return <EventView title="Services" eventTypes={['registry_service', 'windows_service']} columns={columns} tabs={tabs} sortableColumns={['name', 'state']} />
 }
