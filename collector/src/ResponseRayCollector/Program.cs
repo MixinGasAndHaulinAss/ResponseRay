@@ -23,6 +23,8 @@ public static class Program
         var outputPath = ParseArg(args, "--output") ?? Directory.GetCurrentDirectory();
         var skipList = (ParseArg(args, "--skip") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim().ToLowerInvariant()).ToHashSet();
+        var noVss = HasFlag(args, "--no-vss");
+        var includeMemory = HasFlag(args, "--include-memory");
 
         var hostname = Environment.MachineName;
         var timestamp = DateTime.Now;
@@ -32,6 +34,10 @@ public static class Program
         ConsoleOutput.Info($"Output:   {outputPath}");
         if (skipList.Count > 0)
             ConsoleOutput.Info($"Skipping: {string.Join(", ", skipList)}");
+        if (noVss)
+            ConsoleOutput.Info("VSS:      disabled (--no-vss)");
+        if (includeMemory)
+            ConsoleOutput.Info("Memory:   included (--include-memory)");
 
         Directory.CreateDirectory(collectionDir);
         var overallSw = Stopwatch.StartNew();
@@ -40,13 +46,38 @@ public static class Program
         {
             OutputDir = collectionDir,
             Hostname = hostname,
-            CollectionTime = timestamp
+            CollectionTime = timestamp,
+            IncludeMemory = includeMemory
         };
+
+        FileHelper.EnablePrivilege("SeBackupPrivilege");
+        FileHelper.EnablePrivilege("SeManageVolumePrivilege");
+        FileHelper.EnablePrivilege("SeRestorePrivilege");
+        FileHelper.EnablePrivilege("SeSecurityPrivilege");
+
+        // Try to create a VSS snapshot of the system drive so collectors can read locked files cleanly.
+        VssManager? vss = null;
+        if (!noVss)
+        {
+            vss = new VssManager();
+            var systemDrive = Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3);
+            if (vss.CreateSnapshot(systemDrive))
+            {
+                context.VssShadowPath = vss.ShadowPath;
+            }
+            else
+            {
+                ConsoleOutput.Warning("VSS snapshot unavailable; falling back to live filesystem with backup-semantics copy.");
+                vss.Dispose();
+                vss = null;
+            }
+        }
 
         ICollector[] collectors =
         [
             new EventLogCollector(),
             new RegistryCollector(),
+            new RegBackCollector(),
             new PrefetchCollector(),
             new SrumCollector(),
             new BrowserCollector(),
@@ -58,6 +89,21 @@ public static class Program
             new LnkCollector(),
             new DhcpCollector(),
             new MftCollector(),
+            new NtfsMetafilesCollector(),
+            new MbrCollector(),
+            new UsnJournalCollector(),
+            new HostsCollector(),
+            new EventTranscriptCollector(),
+            new RdpCacheCollector(),
+            new QuickAssistCollector(),
+            new CrashDumpCollector(),
+            new IconThumbCacheCollector(),
+            new EtlLogCollector(),
+            new ShimDbCollector(),
+            new WerFileCollector(),
+            new DefenderLogCollector(),
+            new NtdsCollector(),
+            new ApplicationLogsCollector(),
             new ProcessCollector(),
             new NetworkCollector(),
             new DnsCacheCollector(),
@@ -70,21 +116,38 @@ public static class Program
             new DeviceCollector(),
             new UserAccessedDataCollector(),
             new OsConfigCollector(),
+            new DriverCollector(),
+            new AntivirusCollector(),
+            new InstalledAppsCollector(),
+            new NetworkAdapterCollector(),
+            new NetworkShareCollector(),
+            new WirelessHistoryCollector(),
+            new FirewallRulesCollector(),
+            new VolumeShadowCopyCollector(),
+            new VolumeInfoCollector(),
+            new RestorePointCollector(),
+            new EnvVarCollector(),
+            new DefaultBrowserCollector(),
+            new ProxyCollector(),
+            new DnsServerCollector(),
+            new ZoneIdentifierCollector(),
+            new StoreAppCollector(),
+            new MemoryArtifactCollector(),
             new FileSystemCollector(),
         ];
 
         var manifest = new CollectionManifest
         {
             CollectorVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "0.0.0",
+            Platform = "windows",
             Hostname = hostname,
             OsVersion = Environment.OSVersion.ToString(),
             Domain = Environment.UserDomainName,
             CollectionTimestamp = timestamp.ToUniversalTime().ToString("o"),
+            VssUsed = context.VssShadowPath != null,
+            VssPath = context.VssShadowPath,
             UserProfiles = FileHelper.GetUserProfilePaths().Select(Path.GetFileName).Where(n => n != null).Cast<string>().ToList()
         };
-
-        FileHelper.EnablePrivilege("SeBackupPrivilege");
-        FileHelper.EnablePrivilege("SeManageVolumePrivilege");
 
         ConsoleOutput.Section("Collecting Artifacts");
 
@@ -125,6 +188,9 @@ public static class Program
                 });
             }
         }
+
+        // Tear down the snapshot before zipping to release resources.
+        vss?.Dispose();
 
         foreach (var entry in context.CollectedFiles)
         {
@@ -184,5 +250,10 @@ public static class Program
                 return args[i + 1];
         }
         return null;
+    }
+
+    private static bool HasFlag(string[] args, string name)
+    {
+        return args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 }

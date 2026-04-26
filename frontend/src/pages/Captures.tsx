@@ -138,7 +138,7 @@ export default function Captures() {
           <label className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-500 text-sm font-medium cursor-pointer">
             <Upload className="w-4 h-4" />
             Upload Capture
-            <input ref={fileRef} type="file" accept=".json.gz,.gz" onChange={handleUpload} className="hidden" />
+            <input ref={fileRef} type="file" accept=".json.gz,.gz,.zip,.tar.gz,.tgz" onChange={handleUpload} className="hidden" />
           </label>
         </div>
       </div>

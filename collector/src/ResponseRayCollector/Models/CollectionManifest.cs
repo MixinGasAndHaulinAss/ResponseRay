@@ -6,9 +6,12 @@ namespace ResponseRayCollector.Models;
 public class CollectionManifest
 {
     [JsonPropertyName("collector_version")] public string CollectorVersion { get; set; } = "";
+    [JsonPropertyName("platform")] public string Platform { get; set; } = "windows";
     [JsonPropertyName("hostname")] public string Hostname { get; set; } = "";
     [JsonPropertyName("os_version")] public string OsVersion { get; set; } = "";
     [JsonPropertyName("domain")] public string Domain { get; set; } = "";
+    [JsonPropertyName("vss_used")] public bool VssUsed { get; set; }
+    [JsonPropertyName("vss_path")] public string? VssPath { get; set; }
     [JsonPropertyName("collection_timestamp")] public string CollectionTimestamp { get; set; } = "";
     [JsonPropertyName("collection_duration_seconds")] public double CollectionDurationSeconds { get; set; }
     [JsonPropertyName("user_profiles")] public List<string> UserProfiles { get; set; } = new();

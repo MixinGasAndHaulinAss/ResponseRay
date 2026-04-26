@@ -1,8 +1,8 @@
 # ResponseRay
 
-A web-based Digital Forensics and Incident Response (DFIR) platform for investigating Windows endpoints. Upload forensic captures from the [ResponseRay Collector](collector/) or CyberTriage, automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
+A web-based Digital Forensics and Incident Response (DFIR) platform for investigating endpoints across **Windows, Linux, macOS, and VMware ESXi**. Upload forensic captures from any of the four ResponseRay collectors (or CyberTriage), automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
 
-**Current version:** `2026.3.30.9`
+**Current version:** `2026.4.26.1`
 
 ## Architecture
 
@@ -29,12 +29,16 @@ A web-based Digital Forensics and Incident Response (DFIR) platform for investig
 | Job Queue | Redis 7 (Docker) — BRPOP-based job queue with real-time progress tracking |
 | Reverse Proxy | Nginx (Docker) — serves static frontend, proxies `/api/` to Go |
 | Auth | Password + API key (designed to sit behind Cloudflare Zero Trust) |
-| Collector | C# .NET 8 — self-contained Windows executable, raw drive forensic capture |
+| Windows Collector | C# .NET 8 — self-contained Windows executable with native VSS-aware artifact capture |
+| Linux Collector | Go 1.22 — single static binary (`collector-linux/`) covering syslog, journald, packages, persistence, browsers, Docker, audit, etc. |
+| macOS Collector | Go 1.22 — single static binary (`collector-macos/`) covering unified logs, ASL, launchd, TCC, KnowledgeC, FSEvents, browsers, etc. |
+| ESXi Collector | POSIX `sh` script (`collector-esxi/responseray-collector-esxi.sh`) using `esxcli` / `vim-cmd` / `vmkfstools` |
 
 ## Features
 
 - **Incident Management** — Create sites (incidents), upload multiple captures per site, and investigate each independently
 - **Automatic Parsing** — Uploaded captures are queued in Redis and processed by ct-to-timesketch, then ingested into PostgreSQL
+- **Cross-Platform Captures** — Accepts Windows `.zip` archives plus Linux/macOS/ESXi `.tar.gz` archives in a single uniform manifest schema
 - **Processing Progress** — Real-time progress tracking: queue position, processing stage, event ingest progress bar, elapsed time
 - **Chunked Uploads** — Files are split into 50 MB chunks client-side to work behind Cloudflare's 100 MB limit
 - **Per-Capture Isolation** — Each upload's data is scoped independently
@@ -91,10 +95,18 @@ ResponseRay/
 ├── collector/                        # Windows forensic collector (see collector/README.md)
 │   ├── src/ResponseRayCollector/
 │   │   ├── Program.cs                # CLI entry point
-│   │   ├── Collectors/               # Individual artifact collectors
+│   │   ├── Collectors/               # Individual artifact collectors (60+ modules, VSS-aware)
 │   │   ├── Models/                   # Manifest and data models
 │   │   └── Utils/                    # FileHelper, ConsoleOutput
 │   └── publish/                      # Built executable
+├── collector-linux/                  # Linux forensic collector (Go)
+│   ├── cmd/responseray-collector-linux/main.go
+│   └── internal/{collectors,fsutil,manifest}/
+├── collector-macos/                  # macOS forensic collector (Go)
+│   ├── cmd/responseray-collector-macos/main.go
+│   └── internal/{collectors,fsutil,manifest}/
+├── collector-esxi/                   # ESXi forensic collector
+│   └── responseray-collector-esxi.sh # POSIX shell — drop on host, run as root
 ├── ct-to-timesketch/                 # Forensic artifact parser (Go)
 │   ├── cmd/ct-to-timesketch/         # CLI entry point
 │   └── internal/
@@ -357,9 +369,26 @@ with open("cmd.exe", "wb") as f:
 | `recyclebin` | Filesystem | Recycle bin entries |
 | `lnk_target` | LNK files | Shortcut file targets |
 
+## Collectors
+
+ResponseRay ships four first-party collectors, all of which produce a uniform `manifest.json` plus a tree of `artifacts/` and `live/` files for ingestion.
+
+| Platform | Path | Output | Run as |
+|----------|------|--------|--------|
+| Windows | `collector/` (C# .NET 8) | `ResponseRay_<host>_<ts>.zip` | Administrator |
+| Linux | `collector-linux/` (Go) | `<host>_<ts>.tar.gz` | root |
+| macOS | `collector-macos/` (Go) | `ResponseRay_<host>_<ts>.tar.gz` | root |
+| ESXi | `collector-esxi/responseray-collector-esxi.sh` (sh) | `ResponseRay_<host>_<ts>.tar.gz` | root |
+
+All four collectors prefer in-OS APIs over raw disk imaging, so they work on running systems where direct disk access is unavailable. Windows uses Volume Shadow Copy + Backup-API copies for locked files; Linux uses `/proc`, `journalctl`, and direct file copies; macOS uses unified logs + plist/SQLite copies; ESXi uses `esxcli`, `vim-cmd`, and `vmkfstools`.
+
+The `--include-memory` flag is supported on all platforms and is opt-in (memory artifacts are large and may exceed Cloudflare's 100 MB chunk size).
+
+See `collector/README.md`, `collector-linux/README.md`, `collector-macos/README.md`, and `collector-esxi/README.md` for per-platform usage.
+
 ## Versioning
 
-CalVer format: `Year.Month.Day.Revision` (e.g., `2026.3.30.9`). The version is displayed on the login screen, home page, and dashboard.
+CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.1`). The version is displayed on the login screen, home page, and dashboard.
 
 ## License
 

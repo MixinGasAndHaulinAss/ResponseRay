@@ -3,7 +3,14 @@
 *.dll
 *.so
 *.dylib
+*.pdb
 __debug_bin*
+
+# Built collector binaries
+/publish/
+/collector/publish/
+/collector-linux/responseray-collector-linux*
+/collector-macos/responseray-collector-macos*
 
 # Go
 /backend/vendor/

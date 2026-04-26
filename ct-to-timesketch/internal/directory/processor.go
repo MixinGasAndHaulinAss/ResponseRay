@@ -23,11 +23,15 @@ func Process(dirPath, artifactDir string, conv *converter.Converter) (string, *c
 
 	conv.Hostname = manifest.Hostname
 	progress.Info(fmt.Sprintf("Host: %s", manifest.Hostname))
+	progress.Info(fmt.Sprintf("Platform: %s", manifest.Platform))
 	progress.Info(fmt.Sprintf("OS: %s", manifest.OsVersion))
 	progress.Info(fmt.Sprintf("Domain: %s", manifest.Domain))
 	progress.Info(fmt.Sprintf("Collection time: %s", manifest.CollectionTimestamp))
 	progress.Info(fmt.Sprintf("Collector version: %s", manifest.CollectorVersion))
 	progress.Info(fmt.Sprintf("Total files: %d (%s)", manifest.TotalFiles, converter.FormatBytes(manifest.TotalBytes)))
+	if manifest.VssUsed {
+		progress.Info(fmt.Sprintf("VSS shadow used: %s", manifest.VssPath))
+	}
 
 	for _, cr := range manifest.CollectorResults {
 		if cr.Error != "" {

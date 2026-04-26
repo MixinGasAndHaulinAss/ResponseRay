@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -127,20 +129,30 @@ func processUpload(ctx context.Context, pool *pgxpool.Pool, rc *redis.Client, in
 
 	outputPath := filepath.Join(outputDir, "timeline.jsonl")
 
-	isCollectorZip := strings.HasSuffix(strings.ToLower(filename), ".zip")
+	lowerName := strings.ToLower(filename)
+	isCollectorZip := strings.HasSuffix(lowerName, ".zip")
+	isCollectorTar := strings.HasSuffix(lowerName, ".tar.gz") || strings.HasSuffix(lowerName, ".tgz")
+	isCollectorArchive := isCollectorZip || isCollectorTar
 
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 		var cmd *exec.Cmd
 
-		if isCollectorZip {
-			// ResponseRay Collector .zip -- extract and use --directory mode
+		if isCollectorArchive {
+			// ResponseRay Collector archive (.zip from Windows; .tar.gz from
+			// Linux/macOS/ESXi). Extract and run ct-to-timesketch in --directory mode.
 			extractDir := filepath.Join(uploadDir, uploadID.String(), "extracted")
 			os.MkdirAll(extractDir, 0755)
 
 			log.Printf("Extracting collector archive %s...", filename)
-			if err := extractZip(inputPath, extractDir); err != nil {
-				setError(ctx, pool, rc, uploadID, fmt.Sprintf("zip extraction failed: %v", err))
-				return fmt.Errorf("zip extraction: %w", err)
+			var extractErr error
+			if isCollectorZip {
+				extractErr = extractZip(inputPath, extractDir)
+			} else {
+				extractErr = extractTarGz(inputPath, extractDir)
+			}
+			if extractErr != nil {
+				setError(ctx, pool, rc, uploadID, fmt.Sprintf("archive extraction failed: %v", extractErr))
+				return fmt.Errorf("archive extraction: %w", extractErr)
 			}
 
 		// Find the actual directory containing manifest.json
@@ -298,6 +310,60 @@ func extractZip(zipPath, destDir string) error {
 		dst.Close()
 		if err != nil {
 			return fmt.Errorf("copy %s: %w", f.Name, err)
+		}
+	}
+	return nil
+}
+
+// extractTarGz extracts a gzipped tar archive (produced by the Linux, macOS,
+// and ESXi collectors) into destDir.
+func extractTarGz(archivePath, destDir string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("open archive: %w", err)
+	}
+	defer f.Close()
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("gzip reader: %w", err)
+	}
+	defer gz.Close()
+
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("tar next: %w", err)
+		}
+
+		target := filepath.Join(destDir, hdr.Name)
+		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)+string(os.PathSeparator)) {
+			continue
+		}
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			os.MkdirAll(target, 0755)
+		case tar.TypeReg, tar.TypeRegA:
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return err
+			}
+			out, err := os.Create(target)
+			if err != nil {
+				return fmt.Errorf("create %s: %w", target, err)
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				return fmt.Errorf("copy %s: %w", hdr.Name, err)
+			}
+			out.Close()
+		case tar.TypeSymlink, tar.TypeLink:
+			// Skip links to keep extraction sandboxed and predictable.
+			continue
 		}
 	}
 	return nil
