@@ -8,4 +8,5 @@ COPY frontend/ .
 RUN npm run build
 
 FROM alpine:3.19
-COPY --from=builder /build/dist /output
+COPY --from=builder /build/dist /dist
+CMD ["sh", "-c", "rm -rf /output/* /output/.[!.]* 2>/dev/null; cp -a /dist/. /output/ && echo 'frontend assets refreshed'"]
