@@ -8,7 +8,7 @@ A standalone macOS forensic artifact collector. Produces a `tar.gz` archive with
 
 - **Single static binary** — Go 1.22 produces one self-contained executable (Universal 2 build is supported via `lipo`)
 - **In-OS capture (no raw imaging)** — uses `dscl`, `system_profiler`, `log show`, plist + SQLite copies, `sysctl`, `ioreg`. Never reads raw disks. This works on T2/Apple Silicon hosts where direct disk access is restricted by SIP.
-- **Binalyze AIR macOS parity** — covers the full macOS acquisition profile (216+ evidence types) including unified logs, ASL, launchd, login items, KnowledgeC, TCC, FSEvents, Quarantine events, Time Machine, Wireless history, Mail, Messages, browsers, and more
+- **Comprehensive macOS coverage** — 216+ evidence types including unified logs, ASL, launchd, login items, KnowledgeC, TCC, FSEvents, Quarantine events, Time Machine, Wireless history, Mail, Messages, browsers, and more
 - **TCC-aware** — when granted Full Disk Access, captures user-space TCC.db, KnowledgeC.db, Messages chat.db; without FDA, gracefully skips and reports the missing categories in the manifest
 - **Optional memory** — `--include-memory` captures `sleepimage` and `swapfile*` (off by default; large)
 - **Minimal footprint** — collects to `/var/tmp`, compresses to a single `tar.gz`, cleans up after itself

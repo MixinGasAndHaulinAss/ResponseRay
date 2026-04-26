@@ -8,7 +8,7 @@ A standalone Windows forensic artifact collector that captures a comprehensive s
 
 - **No installation required** — single self-contained `.exe`, runs from USB, network share, or local disk
 - **VSS-aware locked-file handling** — automatically creates a Volume Shadow Copy of `C:\` at start and reads locked files (registry hives, NTDS.dit, Defender, EventTranscript, etc.) from the shadow path. If VSS is unavailable, falls back to `reg save` and `CreateFile` with `FILE_FLAG_BACKUP_SEMANTICS` + `SeBackupPrivilege`. Use `--no-vss` to disable.
-- **Binalyze AIR parity** — covers the full Windows acquisition profile (317+ evidence types) plus several artifacts AIR does not collect (raw MFT/USN/MBR, EventTranscript, Iconcache/Thumbcache, etc.)
+- **Comprehensive Windows coverage** — 317+ evidence types across registry, event logs, scheduled tasks, services, browsers, $MFT/$LogFile/$UsnJrnl/MBR/GPT, EventTranscript, Iconcache/Thumbcache, Prefetch, AmCache, ShimCache, BAM/DAM, RDP cache, and more
 - **Multi-drive support** — captures MFT from all NTFS fixed/removable volumes (C:, D:, E:, etc.)
 - **Raw MFT/USN/MBR capture** — reads the Master File Table, USN journal, and MBR/GPT directly from the raw volume device using NTFS boot sector parsing
 - **Optional memory** — `--include-memory` captures `pagefile.sys`, `hiberfil.sys`, and `swapfile.sys` (off by default; large)

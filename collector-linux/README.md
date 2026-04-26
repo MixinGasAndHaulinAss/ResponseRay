@@ -8,7 +8,7 @@ A standalone Linux forensic artifact collector. Produces a `tar.gz` archive with
 
 - **Single static binary** — Go 1.22 produces one self-contained executable; no runtime, no dependencies, runs from USB or `scp` drop
 - **In-OS capture (no raw imaging)** — uses `/proc`, `/sys`, `journalctl`, `systemctl`, package managers, and direct file copies. Never reads raw disks. This works on running production systems where direct disk access is unavailable.
-- **Binalyze AIR Linux parity** — covers the full Linux acquisition profile (165+ evidence types) including auth/syslog, journald, bash/zsh history, SSH config, cron, systemd, network, firewall (iptables/nftables/ufw/firewalld), Docker, Podman, audit, MAC (SELinux/AppArmor), persistence, browsers, and more
+- **Comprehensive Linux coverage** — 165+ evidence types including auth/syslog, journald, bash/zsh history, SSH config, cron, systemd, network, firewall (iptables/nftables/ufw/firewalld), Docker, Podman, audit, MAC (SELinux/AppArmor), persistence, browsers, and more
 - **Optional memory** — `--include-memory` captures `/proc/kcore`, swap files (off by default; large)
 - **Minimal footprint** — collects to `/tmp`, compresses to a single `tar.gz`, cleans up after itself
 

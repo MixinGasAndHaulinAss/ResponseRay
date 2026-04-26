@@ -34,7 +34,7 @@ var collectorCatalog = []collectorSpec{
 		DisplayName:  "Windows Collector",
 		Filename:     "ResponseRayCollector.exe",
 		ContentType:  "application/vnd.microsoft.portable-executable",
-		Description:  "Self-contained .NET 8 binary. VSS-aware live triage with full Binalyze AIR parity.",
+		Description:  "Self-contained .NET 8 binary. VSS-aware live triage covering 300+ Windows artifacts (registry, EVTX, prefetch, USN, MFT, browsers, etc.).",
 		Architecture: "x64",
 	},
 	{

@@ -9,7 +9,7 @@ A POSIX shell script that captures forensic artifacts from a running VMware ESXi
 - **Native shell only** — `/bin/sh` (BusyBox `ash`), no bash, no Python, no Go runtime needed. Drop the script on the host and run.
 - **In-OS capture** — uses `esxcli`, `vim-cmd`, `vmkfstools`, `vsish`, `esxtop`, and direct file copies. No raw disk imaging.
 - **VM metadata only** — captures `.vmx`, `.vmsd`, `.nvram`, `vmware*.log` (small descriptors and logs), but does NOT copy `.vmdk` payloads. To preserve VM disks, use vSphere snapshot or storage-level imaging separately.
-- **Binalyze AIR ESXi parity** — covers the full ESXi acquisition profile (35 evidence types) plus several Currituck-specific additions: per-VM snapshot trees, vmkfstools per-volume stats, NSX/distributed-vSwitch info, vSAN cluster state, secure-boot/TPM/keystore status, all VIB signatures.
+- **Comprehensive ESXi coverage** — 35+ evidence types across host config, hostd/vpxa logs, syslog, firewall, AD/SSO, vSAN, NSX/dvSwitch, secure-boot/TPM/keystore, VIB signatures, plus per-VM snapshot trees and vmkfstools per-volume stats.
 - **Optional memory** — `--include-memory` captures `/var/core/*` and `/vmkernel-zdump*` (off by default; large)
 
 ## Requirements
