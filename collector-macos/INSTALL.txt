@@ -1,0 +1,54 @@
+ResponseRay macOS Collector
+===========================
+
+This archive contains a single static binary plus this README.
+
+Quick start
+-----------
+
+  1. Open Terminal in your Downloads folder.
+  2. Extract:        tar xzf responseray-collector-macos.tar.gz
+  3. Enter folder:   cd responseray-collector-macos
+  4. Run as root:    sudo ./responseray-collector-macos
+
+The collector writes a single tar.gz to the current directory named:
+
+    {hostname}_{timestamp}.tar.gz
+
+Upload that archive into the matching incident in the ResponseRay UI.
+
+If macOS blocks the binary
+--------------------------
+
+Because the binary is unsigned, Gatekeeper may refuse to run it. Either:
+
+  * Right-click in Finder → Open → confirm. After that the OS remembers
+    your choice and `sudo ./responseray-collector-macos` will work, or
+  * From Terminal:   xattr -d com.apple.quarantine ./responseray-collector-macos
+
+Common options
+--------------
+
+    --output /path/to/dir      Where to write the archive (default: cwd)
+    --include-memory           Also capture sleepimage / swapfile* (large)
+    --no-cleanup               Keep the staging directory after success
+
+Run with --help for the full list.
+
+Full Disk Access (recommended)
+------------------------------
+
+For best coverage (TCC.db, KnowledgeC.db, Messages chat.db) grant Full
+Disk Access to the Terminal you launch the collector from:
+
+  System Settings → Privacy & Security → Full Disk Access → enable Terminal
+
+Without FDA the collector still runs but skips user-level TCC-protected
+artifacts; the manifest will list which categories were missed.
+
+Requirements
+------------
+
+  * macOS 11 (Big Sur) or later.
+  * root (sudo).
+  * No runtime dependencies — the binary is fully static.

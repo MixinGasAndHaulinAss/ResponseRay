@@ -1,0 +1,34 @@
+ResponseRay Linux Collector
+===========================
+
+This archive contains a single static binary plus this README.
+
+Quick start
+-----------
+
+  1. Extract:        tar xzf responseray-collector-linux.tar.gz
+  2. Enter folder:   cd responseray-collector-linux
+  3. Run as root:    sudo ./responseray-collector-linux
+
+The collector writes a single tar.gz to the current directory named:
+
+    {hostname}_{timestamp}.tar.gz
+
+Upload that archive into the matching incident in the ResponseRay UI.
+
+Common options
+--------------
+
+    --output /path/to/dir      Where to write the archive (default: cwd)
+    --include-memory           Also capture /proc/kcore and swap (large)
+    --no-cleanup               Keep the staging directory after success
+
+Run with --help for the full list.
+
+Requirements
+------------
+
+  * Linux kernel 3.10+ (RHEL 7 era and newer)
+  * root (most artifacts require it: /var/log/auth.log, /etc/shadow,
+    journalctl --system, etc.)
+  * No runtime dependencies — the binary is fully static.

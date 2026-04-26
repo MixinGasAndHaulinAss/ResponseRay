@@ -40,17 +40,17 @@ var collectorCatalog = []collectorSpec{
 	{
 		Platform:     "linux",
 		DisplayName:  "Linux Collector",
-		Filename:     "responseray-collector-linux",
-		ContentType:  "application/octet-stream",
-		Description:  "Static Go binary. journald, packages, persistence, Docker/Podman, auditd, file timeline.",
+		Filename:     "responseray-collector-linux.tar.gz",
+		ContentType:  "application/gzip",
+		Description:  "Static Go binary in a tar.gz with INSTALL.txt. journald, packages, persistence, Docker/Podman, auditd, file timeline.",
 		Architecture: "amd64",
 	},
 	{
 		Platform:     "macos",
 		DisplayName:  "macOS Collector",
-		Filename:     "responseray-collector-macos",
-		ContentType:  "application/octet-stream",
-		Description:  "Static Go binary. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.",
+		Filename:     "responseray-collector-macos.tar.gz",
+		ContentType:  "application/gzip",
+		Description:  "Static Go binary in a tar.gz with INSTALL.txt. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.",
 		Architecture: "amd64",
 	},
 	{
