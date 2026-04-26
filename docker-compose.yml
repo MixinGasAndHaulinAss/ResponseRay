@@ -2,16 +2,28 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    network_mode: host
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-responseray}
       POSTGRES_USER: ${POSTGRES_USER:-responseray}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-responseray}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-responseray} -h 127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    network_mode: host
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,19 +32,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
+      network: host
     restart: unless-stopped
+    network_mode: host
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-responseray}
       POSTGRES_USER: ${POSTGRES_USER:-responseray}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
-      REDIS_ADDR: redis:6379
+      REDIS_ADDR: 127.0.0.1:6379
       API_PORT: "8080"
       AUTH_PASSWORD: ${AUTH_PASSWORD:-changeme_in_production}
       CT_BINARY_PATH: /usr/local/bin/ct-to-timesketch
@@ -42,27 +56,12 @@ services:
     volumes:
       - /data:/data
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redisdata:/data
-    ports:
-      - "127.0.0.1:6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - api
-    ports:
-      - "8888:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - frontend_build:/usr/share/nginx/html:ro
@@ -71,6 +70,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      network: host
     volumes:
       - frontend_build:/output
 
