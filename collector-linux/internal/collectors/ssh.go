@@ -78,7 +78,3 @@ func (c *SSHCollector) Collect(ctx *fsutil.Context) Result {
 	r.Elapsed = time.Since(start)
 	return r
 }
-
-func stat(p string) (fs.FileInfo, error) {
-	return statFn(p)
-}
