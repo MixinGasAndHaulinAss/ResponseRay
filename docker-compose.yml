@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     network_mode: host
+    command: ["postgres", "-c", "listen_addresses=127.0.0.1"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-responseray}
       POSTGRES_USER: ${POSTGRES_USER:-responseray}
@@ -19,7 +20,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     network_mode: host
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --bind 127.0.0.1
     volumes:
       - redisdata:/data
     healthcheck:
