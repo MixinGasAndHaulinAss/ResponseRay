@@ -40,7 +40,7 @@ services:
       ARTIFACTS_DIR: /data/artifacts
       REPORTS_DIR: /data/reports
     volumes:
-      - appdata:/data
+      - /data:/data
 
   redis:
     image: redis:7-alpine
@@ -76,6 +76,5 @@ services:
 
 volumes:
   pgdata:
-  appdata:
   redisdata:
   frontend_build:
