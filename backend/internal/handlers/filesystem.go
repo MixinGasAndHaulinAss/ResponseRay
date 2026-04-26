@@ -64,25 +64,44 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 		args = append(args, parsed)
 	}
 
-	dirSQL := fmt.Sprintf(`
-		SELECT d.name,
-		       (SELECT COUNT(DISTINCT data->>'file_name')
-		        FROM events
-		        WHERE site_id = $1
-		          AND event_type IN ('file_timeline', 'file_timeline_fn')
-		          AND data->>'file_path' = $2 || d.name || '/'%s
-		       ) AS file_count
-		FROM (
-		    SELECT DISTINCT data->>'file_name' AS name
-		    FROM events
-		    WHERE site_id = $1
-		      AND event_type IN ('file_timeline', 'file_timeline_fn')
-		      AND data->>'file_path' = $2
-		      AND data->>'meta_type' = 'Dir'%s
-		) d
-		ORDER BY d.name`, uploadFilter, uploadFilter)
+	var dirSQL string
+	var dirArgs []interface{}
+	if path == "/" {
+		// Root path: discover drive letter directories using fast EXISTS checks.
+		dirArgs = []interface{}{siteID}
+		rootUploadFilter := ""
+		if uid := r.URL.Query().Get("upload_id"); uid != "" {
+			parsed, _ := uuid.Parse(uid)
+			rootUploadFilter = " AND upload_id = $2"
+			dirArgs = append(dirArgs, parsed)
+		}
+		dirSQL = fmt.Sprintf(`
+			SELECT letter AS name FROM (
+			    VALUES ('a'),('b'),('c'),('d'),('e'),('f'),('g'),('h'),('i'),('j'),
+			           ('k'),('l'),('m'),('n'),('o'),('p'),('q'),('r'),('s'),('t'),
+			           ('u'),('v'),('w'),('x'),('y'),('z')
+			) AS v(letter)
+			WHERE EXISTS (
+			    SELECT 1 FROM events
+			    WHERE site_id = $1
+			      AND event_type IN ('file_timeline', 'file_timeline_fn')
+			      AND data->>'file_path' = '/' || letter || '/'%s
+			    LIMIT 1
+			)
+			ORDER BY name`, rootUploadFilter)
+	} else {
+		dirArgs = args
+		dirSQL = fmt.Sprintf(`
+			SELECT DISTINCT data->>'file_name' AS name
+			FROM events
+			WHERE site_id = $1
+			  AND event_type IN ('file_timeline', 'file_timeline_fn')
+			  AND data->>'file_path' = $2
+			  AND data->>'meta_type' = 'Dir'%s
+			ORDER BY name`, uploadFilter)
+	}
 
-	dirRows, err := h.DB.Query(r.Context(), dirSQL, args...)
+	dirRows, err := h.DB.Query(r.Context(), dirSQL, dirArgs...)
 	if err != nil {
 		httpError(w, fmt.Errorf("query dirs: %w", err))
 		return
@@ -92,15 +111,16 @@ func (h *FilesystemHandler) ListDir(w http.ResponseWriter, r *http.Request) {
 	var entries []fsEntry
 	for dirRows.Next() {
 		var name string
-		var count int
-		if err := dirRows.Scan(&name, &count); err != nil {
+		if err := dirRows.Scan(&name); err != nil {
 			httpError(w, err)
 			return
 		}
+		if name == "" {
+			continue
+		}
 		entries = append(entries, fsEntry{
-			Name:      name,
-			IsDir:     true,
-			FileCount: count,
+			Name:  name,
+			IsDir: true,
 		})
 	}
 

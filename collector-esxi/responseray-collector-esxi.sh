@@ -12,7 +12,7 @@
 
 set -u
 
-VERSION="2026.4.26.1"
+VERSION="2026.4.26.2"
 HOSTNAME="$(hostname 2>/dev/null || echo esxi-host)"
 TS_UTC="$(date -u +%Y%m%dT%H%M%SZ 2>/dev/null || date -u +%Y%m%d_%H%M%S)"
 TS_RFC="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"

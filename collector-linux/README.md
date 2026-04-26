@@ -2,7 +2,7 @@
 
 A standalone Linux forensic artifact collector. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows collector, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.26.1`
+**Current version:** `2026.4.26.2`
 
 ## Key Design Principles
 

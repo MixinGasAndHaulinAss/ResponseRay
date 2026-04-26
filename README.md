@@ -2,7 +2,7 @@
 
 A web-based Digital Forensics and Incident Response (DFIR) platform for investigating endpoints across **Windows, Linux, macOS, and VMware ESXi**. Upload forensic captures from any of the four ResponseRay collectors (or CyberTriage), automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
 
-**Current version:** `2026.4.26.1`
+**Current version:** `2026.4.26.2`
 
 ## Architecture
 
@@ -399,7 +399,7 @@ The bundle path inside the container is `/usr/share/responseray/collectors/<plat
 
 ## Versioning
 
-CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.1`). The version is displayed on the login screen, home page, and dashboard.
+CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.2`). The version is displayed on the login screen, home page, and dashboard.
 
 ## License
 

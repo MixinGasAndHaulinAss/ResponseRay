@@ -20,7 +20,7 @@ import (
 	"github.com/responseray/collector-macos/internal/manifest"
 )
 
-const collectorVersion = "2026.4.26.1"
+const collectorVersion = "2026.4.26.2"
 
 func main() {
 	output := flag.String("output", "", "Output directory for the collection (defaults to /var/tmp/<host>-<timestamp>)")

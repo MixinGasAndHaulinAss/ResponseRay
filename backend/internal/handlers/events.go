@@ -187,13 +187,22 @@ func (h *EventHandler) queryEvents(r *http.Request, q models.EventQuery) ([]mode
 	}
 
 	orderBy := "datetime DESC"
-	allowedSorts := map[string]bool{"datetime": true, "event_type": true, "message": true, "id": true}
-	if q.SortField != "" && allowedSorts[q.SortField] {
-		dir := "ASC"
-		if strings.EqualFold(q.SortDir, "desc") {
-			dir = "DESC"
+	allowedSorts := map[string]string{
+		"datetime":   "datetime",
+		"event_type": "event_type",
+		"message":    "message",
+		"id":         "id",
+		"name":       "COALESCE(data->>'service_name', data->>'ServiceName', data->>'param1', '')",
+		"state":      "COALESCE(data->>'param2', '')",
+	}
+	if q.SortField != "" {
+		if expr, ok := allowedSorts[q.SortField]; ok {
+			dir := "ASC"
+			if strings.EqualFold(q.SortDir, "desc") {
+				dir = "DESC"
+			}
+			orderBy = fmt.Sprintf("%s %s", expr, dir)
 		}
-		orderBy = fmt.Sprintf("%s %s", q.SortField, dir)
 	}
 
 	dataSQL := fmt.Sprintf(
