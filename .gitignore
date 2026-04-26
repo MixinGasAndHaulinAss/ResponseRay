@@ -35,3 +35,6 @@ __debug_bin*
 # OS
 .DS_Store
 Thumbs.db
+
+# Scratch
+.commit-msg.tmp

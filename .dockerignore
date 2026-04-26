@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/.DS_Store
+**/node_modules
+**/dist
+**/build
+**/bin
+**/obj
+publish
+collector/publish
+collector-linux/responseray-collector-linux
+collector-linux/responseray-collector-linux.exe
+collector-macos/responseray-collector-macos
+*.pdb
+agent-transcripts
+terminals

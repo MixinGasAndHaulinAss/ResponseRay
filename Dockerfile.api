@@ -1,3 +1,7 @@
+# syntax=docker/dockerfile:1.6
+# ----------------------------------------------------------------------
+# Stage 1: build the Go API + worker binaries.
+# ----------------------------------------------------------------------
 FROM golang:1.22-alpine AS builder
 
 RUN apk add --no-cache gcc musl-dev
@@ -10,12 +14,72 @@ COPY backend/ .
 RUN CGO_ENABLED=0 go build -o /responseray-api ./cmd/api/
 RUN CGO_ENABLED=0 go build -o /responseray-worker ./cmd/worker/
 
+# ----------------------------------------------------------------------
+# Stage 2: build the Linux + macOS Go-based collectors as static binaries.
+# ----------------------------------------------------------------------
+FROM golang:1.22-alpine AS collectors-go
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+
+COPY collector-linux/ ./collector-linux/
+COPY collector-macos/ ./collector-macos/
+
+RUN cd collector-linux \
+    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+        -trimpath -ldflags "-s -w" \
+        -o /out/linux/responseray-collector-linux \
+        ./cmd/responseray-collector-linux
+
+RUN cd collector-macos \
+    && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
+        -trimpath -ldflags "-s -w" \
+        -o /out/macos/responseray-collector-macos \
+        ./cmd/responseray-collector-macos
+
+# ----------------------------------------------------------------------
+# Stage 3: build the Windows .NET collector as a self-contained single-file exe.
+# ----------------------------------------------------------------------
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS collectors-windows
+
+WORKDIR /src
+COPY collector/src/ResponseRayCollector/ ./ResponseRayCollector/
+
+RUN cd ResponseRayCollector \
+    && dotnet publish -c Release -r win-x64 --self-contained true \
+        /p:PublishSingleFile=true \
+        /p:PublishTrimmed=false \
+        -o /out
+
+# ----------------------------------------------------------------------
+# Stage 4: final runtime image.
+# ----------------------------------------------------------------------
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /responseray-api /usr/local/bin/
 COPY --from=builder /responseray-worker /usr/local/bin/
+
+# Bundle the four collectors so the API can serve them as downloads.
+RUN mkdir -p /usr/share/responseray/collectors/windows \
+             /usr/share/responseray/collectors/linux \
+             /usr/share/responseray/collectors/macos \
+             /usr/share/responseray/collectors/esxi
+
+COPY --from=collectors-go /out/linux/responseray-collector-linux \
+     /usr/share/responseray/collectors/linux/responseray-collector-linux
+COPY --from=collectors-go /out/macos/responseray-collector-macos \
+     /usr/share/responseray/collectors/macos/responseray-collector-macos
+COPY --from=collectors-windows /out/ResponseRayCollector.exe \
+     /usr/share/responseray/collectors/windows/ResponseRayCollector.exe
+COPY collector-esxi/responseray-collector-esxi.sh \
+     /usr/share/responseray/collectors/esxi/responseray-collector-esxi.sh
+
+RUN chmod 0755 /usr/share/responseray/collectors/linux/responseray-collector-linux \
+               /usr/share/responseray/collectors/macos/responseray-collector-macos \
+               /usr/share/responseray/collectors/esxi/responseray-collector-esxi.sh
 
 RUN mkdir -p /data/uploads /data/artifacts /data/reports
 

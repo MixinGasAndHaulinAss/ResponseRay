@@ -386,6 +386,17 @@ The `--include-memory` flag is supported on all platforms and is opt-in (memory 
 
 See `collector/README.md`, `collector-linux/README.md`, `collector-macos/README.md`, and `collector-esxi/README.md` for per-platform usage.
 
+### Downloading from the UI
+
+The Sites/landing page exposes a **Collectors** button that lists the four platform binaries with download buttons. The API container builds and bundles all four collectors at image-build time and serves them at:
+
+```
+GET  /api/collectors/                       — list (size, sha256, availability)
+GET  /api/collectors/{platform}/download    — stream the binary
+```
+
+The bundle path inside the container is `/usr/share/responseray/collectors/<platform>/`, overridable via the `COLLECTORS_DIR` env var. If you build the API image without one of the toolchains (e.g., `dotnet` SDK unavailable), only the available collectors will be marked downloadable in the UI; the rest will show as "Unavailable".
+
 ## Versioning
 
 CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.1`). The version is displayed on the login screen, home page, and dashboard.

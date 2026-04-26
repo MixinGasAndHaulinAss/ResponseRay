@@ -55,6 +55,10 @@ func main() {
 	if reportsDir == "" {
 		reportsDir = "/data/reports"
 	}
+	collectorsDir := os.Getenv("COLLECTORS_DIR")
+	if collectorsDir == "" {
+		collectorsDir = "/usr/share/responseray/collectors"
+	}
 
 	siteH := &handlers.SiteHandler{DB: pool, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
 	uploadH := &handlers.UploadHandler{DB: pool, Redis: redisClient, UploadDir: uploadDir, ArtifactsDir: artifactsDir, ReportsDir: reportsDir}
@@ -64,6 +68,7 @@ func main() {
 	logonH := &handlers.LogonHandler{DB: pool}
 	raH := &handlers.RemoteAccessHandler{DB: pool}
 	keyH := &handlers.APIKeyHandler{DB: pool}
+	collectorH := &handlers.CollectorHandler{CollectorsDir: collectorsDir}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -85,6 +90,11 @@ func main() {
 		r.Get("/", keyH.List)
 		r.Post("/", keyH.Create)
 		r.Delete("/{keyID}", keyH.Delete)
+	})
+
+	r.Route("/api/collectors", func(r chi.Router) {
+		r.Get("/", collectorH.List)
+		r.Get("/{platform}/download", collectorH.Download)
 	})
 
 	r.Route("/api/sites", func(r chi.Router) {

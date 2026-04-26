@@ -167,6 +167,30 @@ export const api = {
     request<ApiKeyCreateResponse>('/keys/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }),
   deleteApiKey: (keyId: string) =>
     request<void>(`/keys/${keyId}`, { method: 'DELETE' }),
+
+  // Collectors
+  listCollectors: () => request<CollectorInfo[]>('/collectors/'),
+  downloadCollector: async (platform: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/collectors/${platform}/download`, {
+      headers: { 'Authorization': getAuthHeader() },
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || `Failed to download ${platform} collector`)
+    }
+    const blob = await res.blob()
+    const disposition = res.headers.get('content-disposition') || ''
+    const match = /filename="?([^";]+)"?/i.exec(disposition)
+    const filename = match ? match[1] : `responseray-collector-${platform}`
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  },
 }
 
 // Types
@@ -291,4 +315,17 @@ export interface ApiKey {
 
 export interface ApiKeyCreateResponse extends ApiKey {
   key: string
+}
+
+export interface CollectorInfo {
+  platform: string
+  display_name: string
+  filename: string
+  description: string
+  architecture: string
+  available: boolean
+  size?: number
+  sha256?: string
+  modified_at?: string
+  error?: string
 }
