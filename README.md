@@ -1,8 +1,20 @@
 # ResponseRay
 
-A web-based Digital Forensics and Incident Response (DFIR) platform for investigating endpoints across **Windows, Linux, macOS, and VMware ESXi**. Upload forensic captures from any of the four ResponseRay collectors (or CyberTriage), automatically parse them via [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch), and explore the results through an interactive browser UI.
+A web-based Digital Forensics and Incident Response (DFIR) platform for investigating endpoints across **Windows, Linux, macOS, and VMware ESXi**. Upload forensic captures from any of the four ResponseRay collectors (or CyberTriage), parse them with the native in-process pipeline (`backend/internal/collectoringest`) for Linux/macOS/ESXi or [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch) for Windows, and explore the results through an interactive browser UI.
 
-**Current version:** `2026.4.26.2`
+## Ingest pipeline
+
+| Source | Parser | Notes |
+|--------|--------|-------|
+| ResponseRay Windows `.zip` | `ct-to-timesketch --directory` | Existing path, unchanged. |
+| ResponseRay Linux `.tar.gz` | `backend/internal/collectoringest/linux` | Processes, ss/netstat, iptables/nftables/ufw/firewalld, journald sshd, systemd units, cron, persistence, ssh, shell history, packages. |
+| ResponseRay macOS `.tar.gz` | `backend/internal/collectoringest/macos` | TCC.db, QuarantineEventsV2, knowledgeC.db, Safari/Chromium/Firefox SQLite, LaunchAgents/Daemons plists (parsed), unified-log archive via bundled `unifiedlog_iterator` (mandiant/macos-UnifiedLogs). |
+| ResponseRay ESXi `.tar.gz` | `backend/internal/collectoringest/esxi` | esxcli tables, VM inventory, processes, network, accounts, permissions, firewall, VIBs, security (SecureBoot/TPM/keystore/lockdown), `.vmx` configs. |
+| CyberTriage `.json.gz` | `ct-to-timesketch` | Legacy path. |
+
+The macOS path no longer truncates at the 7-day `log show` window: the `unifiedlog_iterator` Rust binary baked into the API image walks the full `/var/db/diagnostics` archive captured by the collector, so events going back as far as the host has retained `.tracev3` shards are emitted as `os_log` records.
+
+**Current version:** `2026.4.26.3`
 
 ## Architecture
 
@@ -83,6 +95,11 @@ ResponseRay/
 │       ├── db/                       # PostgreSQL connection + migrations
 │       ├── handlers/                 # HTTP handlers (sites, uploads, events, filesystem, etc.)
 │       ├── ingest/                   # JSONL → PostgreSQL ingestion
+│       ├── collectoringest/          # Native parsers for ResponseRay collector outputs
+│       │   ├── core/                 #   shared Emitter/Manifest/SQLite/plist/time helpers
+│       │   ├── macos/                #   TCC.db, Quarantine, knowledgeC, browsers, launchd, unifiedlog, …
+│       │   ├── linux/                #   processes, journald, systemd, cron, ssh, packages, …
+│       │   └── esxi/                 #   esxcli tables, vim-cmd, VIBs, firewall, VM .vmx, …
 │       ├── rdb/                      # Redis client, job queue, progress tracking
 │       └── models/                   # Shared data structures
 ├── frontend/
@@ -399,7 +416,7 @@ The bundle path inside the container is `/usr/share/responseray/collectors/<plat
 
 ## Versioning
 
-CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.2`). The version is displayed on the login screen, home page, and dashboard.
+CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.26.3`). The version is displayed on the login screen, home page, and dashboard.
 
 ## License
 

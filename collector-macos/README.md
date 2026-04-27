@@ -2,7 +2,7 @@
 
 A standalone macOS forensic artifact collector. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows and Linux collectors, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.26.2`
+**Current version:** `2026.4.26.3`
 
 ## Key Design Principles
 
@@ -106,6 +106,42 @@ sudo ./responseray-collector-macos --skip Browsers,Mail
 ## Output Format
 
 Same schema as the Windows and Linux collectors. The `manifest.json` includes a `"platform": "macos"` field so the backend can route platform-specific extractors.
+
+## Server-side raw artifact parsing
+
+As of `2026.4.26.3`, the ResponseRay backend parses macOS raw artifacts in-process (rather than just hashing/preserving them on the timeline). The native parser lives at `backend/internal/collectoringest/macos/` and runs automatically when an upload's manifest declares `"platform": "macos"`.
+
+| Captured artifact | Parser | Event types emitted |
+|-------------------|--------|---------------------|
+| `artifacts/tcc/{system,users/<u>}/TCC.db` | `tcc.go` | `tcc_grant` (one per `access` row) |
+| `artifacts/quarantine/<u>/QuarantineEventsV2` | `quarantine.go` | `file_downloaded` (one per `LSQuarantineEvent` row) |
+| `artifacts/knowledgec/{system,users/<u>}/knowledgeC.db` | `knowledgec.go` | `application_usage`, `application_focus`, `device_locked`, `device_unlocked`, `display_on`, `display_off`, `battery_level`, `web_history`, `app_intent`, `app_activity`, `web_usage` |
+| `artifacts/browsers/<browser>/<u>/{History,Cookies,Login Data}` | `browsers.go` | `web_history`, `web_download`, `web_cookie`, `web_login` (Chromium family) |
+| `artifacts/browsers/safari/<u>/History.db` | `browsers.go` | `web_history` |
+| `artifacts/browsers/firefox/<u>/{places,cookies,formhistory,downloads}.sqlite` | `browsers.go` | `web_history`, `web_cookie`, `form_history`, `web_download` |
+| `artifacts/launch/{...,users/<u>/...}/*.plist` | `launchd.go` | `startup_item` with parsed `Label`, `ProgramArguments`, `RunAtLoad`, `KeepAlive`, `StartInterval`, `StartCalendarInterval`, `WatchPaths`, etc. |
+| `artifacts/unified_logs/` (`.tracev3` archive) | `unifiedlog.go` | `os_log` per record via the bundled `unifiedlog_iterator` Rust binary (parses the *full* on-disk archive, not just the 24h `log show` snapshot, so events older than 7 days are preserved) |
+
+The Go SQLite reading uses `modernc.org/sqlite` (pure Go, no cgo) so the worker stays statically linked. Plist decoding uses `howett.net/plist` and handles both binary (bplist00) and XML formats.
+
+### Raw application logs
+
+The macOS collector now also captures raw text logs from the apps the [Binalyze macOS collections KB](https://kb.binalyze.com/air/features/acquisition/supported-evidence/macos-collections) calls out as missing in their default profile:
+
+- Homebrew (`/usr/local/var/log`, `/opt/homebrew/var/log`, `/opt/homebrew/Library/Logs`)
+- MySQL (`/usr/local/var/mysql/*.log`, `*.err`)
+- PostgreSQL (`/usr/local/var/postgres/log/`, `pg_log/`)
+- NGINX (`/usr/local/var/log/nginx`, `/opt/homebrew/var/log/nginx`)
+- MongoDB (`/usr/local/var/log/mongodb`, `/opt/homebrew/var/log/mongodb`)
+- Apache (`/var/log/apache2`)
+- AnyDesk (`/Library/Application Support/AnyDesk`, `~/Library/Application Support/AnyDesk`)
+- TeamViewer (`/Library/Application Support/TeamViewer`, `~/Library/Application Support/TeamViewer`)
+- Sophos (`/Library/Application Support/Sophos`)
+- Splashtop (`/Library/Application Support/Splashtop`, `~/Library/Application Support/Splashtop`)
+- Parallels (`/Library/Application Support/Parallels`, `~/Library/Application Support/Parallels`)
+- Discord (`~/Library/Application Support/discord/logs`)
+- Docker Desktop (`~/Library/Containers/com.docker.docker/Data/log`, `~/Library/Logs/Docker`)
+- All of `/private/var/log` (system-wide pf, install, secure, daily/weekly/monthly, ...)
 
 ## Building
 

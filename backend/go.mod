@@ -8,6 +8,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/redis/go-redis/v9 v9.18.0
+	howett.net/plist v1.0.1
+	modernc.org/sqlite v1.34.4
 )
 
 require (

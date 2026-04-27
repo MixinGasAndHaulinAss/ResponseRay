@@ -2,11 +2,15 @@
 # ----------------------------------------------------------------------
 # Stage 1: Go toolchain — build api, worker, ct-to-timesketch, and the
 # Linux/macOS collectors (all separate modules) in a single layer.
-# ct-to-timesketch's go.mod requires Go 1.26, so we use that everywhere.
+# ct-to-timesketch's go.mod requires Go 1.26, and uses CGO sqlite, so we
+# build on debian (glibc) to match the final runtime base used by the
+# bundled `unifiedlog_iterator` Rust binary.
 # ----------------------------------------------------------------------
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26-bookworm AS builder
 
-RUN apk add --no-cache gcc musl-dev git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
@@ -39,6 +43,24 @@ RUN cd collector-macos \
         ./cmd/responseray-collector-macos
 
 # ----------------------------------------------------------------------
+# Stage 1b: Rust toolchain — build the mandiant macos-UnifiedLogs
+# `unifiedlog_iterator` binary used by collectoringest/macos to parse
+# .tracev3 files captured from a Mac's diagnostics archive.
+# ----------------------------------------------------------------------
+FROM rust:1.83-bookworm AS unifiedlog-builder
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/mandiant/macos-UnifiedLogs.git \
+    && cd macos-UnifiedLogs/examples/unifiedlog_iterator \
+    && cargo build --release \
+    && cp ../../target/release/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator \
+    && strip /usr/local/bin/unifiedlog_iterator || true
+
+# ----------------------------------------------------------------------
 # Stage 2: build the Windows .NET collector as a self-contained single-file exe.
 # ----------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS collectors-windows
@@ -53,11 +75,14 @@ RUN cd ResponseRayCollector \
         -o /out
 
 # ----------------------------------------------------------------------
-# Stage 3: final runtime image.
+# Stage 3: final runtime image. We need glibc for the Rust unifiedlog
+# iterator so the runtime base is debian-slim, not alpine.
 # ----------------------------------------------------------------------
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # API + worker
 COPY --from=builder /out/responseray-api /usr/local/bin/
@@ -66,6 +91,9 @@ COPY --from=builder /out/responseray-worker /usr/local/bin/
 # ct-to-timesketch + cloudrules (auto-detected from <exe-dir>/cloudrules/)
 COPY --from=builder /out/ct-to-timesketch /usr/local/bin/ct-to-timesketch
 COPY ct-to-timesketch/cloudrules/ /usr/local/bin/cloudrules/
+
+# unifiedlog_iterator (mandiant/macos-UnifiedLogs) for .tracev3 parsing.
+COPY --from=unifiedlog-builder /usr/local/bin/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator
 
 # Collector payloads served via /api/collectors/<platform>/download.
 # Linux/macOS ship as tar.gz bundles (binary + INSTALL.txt) so the OS

@@ -32,13 +32,17 @@ func Process(em *core.Emitter, dirPath, ts string) int {
 	total += processMacFirewall(em, dirPath, ts)
 	total += processMacBTM(em, dirPath, ts)
 	total += processMacLaunchctl(em, dirPath, ts)
-	total += processMacLaunchPlists(em, artifactDir, ts)
+	total += processMacLaunchPlistsRich(em, artifactDir, ts)
 	total += processMacPersistenceTree(em, artifactDir, ts)
 	total += processMacApplications(em, artifactDir, dirPath, ts)
 	total += processMacUsers(em, dirPath, ts)
 	total += processMacShellHistory(em, artifactDir, ts)
 	total += processMacSSH(em, artifactDir, ts)
-	total += processMacQuarantine(em, artifactDir, ts)
+	total += processMacQuarantineDB(em, artifactDir, ts)
+	total += processMacTCC(em, artifactDir, ts)
+	total += processMacKnowledgeC(em, artifactDir, ts)
+	total += processMacBrowsers(em, artifactDir, ts)
+	total += processMacUnifiedLogs(em, artifactDir, ts)
 	total += processMacRecentItems(em, artifactDir, ts)
 	total += processMacSystemInfo(em, dirPath, ts)
 	total += processMacTimeMachine(em, dirPath, ts)
@@ -637,77 +641,9 @@ func processMacLaunchctl(em *core.Emitter, dirPath, ts string) int {
 	return added
 }
 
-// ---------------------------------------------------------------------------
-// Launch agents/daemons - emit one startup_item per .plist file (mtime + ts).
-// ---------------------------------------------------------------------------
-
-func processMacLaunchPlists(em *core.Emitter, artifactDir, ts string) int {
-	root := filepath.Join(artifactDir, "launch")
-	if _, err := os.Stat(root); err != nil {
-		return 0
-	}
-	added := 0
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(strings.ToLower(d.Name()), ".plist") {
-			return nil
-		}
-		info, ierr := d.Info()
-		if ierr != nil {
-			return nil
-		}
-
-		rel, _ := filepath.Rel(root, path)
-		// rel will look like "Library/LaunchAgents/com.example.foo.plist" or
-		// "users/runneradmin/LaunchAgents/com.example.bar.plist".
-		var origin, scope string
-		switch {
-		case strings.HasPrefix(rel, "users"+string(filepath.Separator)):
-			scope = "user"
-			parts := strings.Split(rel, string(filepath.Separator))
-			if len(parts) >= 4 {
-				origin = "/Users/" + parts[1] + "/Library/" + strings.Join(parts[2:], "/")
-			} else {
-				origin = "/" + strings.ReplaceAll(rel, string(filepath.Separator), "/")
-			}
-		default:
-			scope = "system"
-			origin = "/" + strings.ReplaceAll(rel, string(filepath.Separator), "/")
-		}
-
-		label := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		mtime := core.FileMtimeISO(info.ModTime())
-
-		msg := fmt.Sprintf("LaunchAgent/Daemon plist: %s [%s]", label, scope)
-		attrs := map[string]interface{}{
-			"config_type":   "LaunchAgentDaemon",
-			"description":   label,
-			"details":       origin,
-			"location":      origin,
-			"plist_path":    origin,
-			"plist_size":    info.Size(),
-			"scope":         scope,
-			"label":         label,
-			"artifact_path": filepath.ToSlash(filepath.Join("launch", rel)),
-		}
-		if em.AddEvent(mtime, "Plist Modified", msg, "startup_item",
-			"RR-MacOS", "ResponseRay macOS Collector - LaunchAgents/Daemons",
-			"darwin:launchd:plist", attrs) {
-			added++
-		}
-		// Also emit at collection time so the persistence shows up on the
-		// timeline at the moment of acquisition regardless of mtime.
-		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
-			"RR-MacOS", "ResponseRay macOS Collector - LaunchAgents/Daemons",
-			"darwin:launchd:plist", core.CopyAttrs(attrs)) {
-			added++
-		}
-		return nil
-	})
-	return added
-}
+// processMacLaunchPlists is now superseded by processMacLaunchPlistsRich in
+// launchd.go which actually decodes plist contents. Kept here as a stub so
+// existing call sites that opt into the older behavior still link.
 
 // ---------------------------------------------------------------------------
 // Persistence tree - one event per file under artifacts/persistence.
@@ -1241,40 +1177,9 @@ func processMacSSH(em *core.Emitter, artifactDir, ts string) int {
 	return added
 }
 
-// ---------------------------------------------------------------------------
-// Quarantine - emit one event per file under artifacts/quarantine.
-// ---------------------------------------------------------------------------
-
-func processMacQuarantine(em *core.Emitter, artifactDir, ts string) int {
-	root := filepath.Join(artifactDir, "quarantine")
-	if _, err := os.Stat(root); err != nil {
-		return 0
-	}
-	added := 0
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		info, ierr := d.Info()
-		if ierr != nil {
-			return nil
-		}
-		rel, _ := filepath.Rel(root, path)
-		mtime := core.FileMtimeISO(info.ModTime())
-		msg := fmt.Sprintf("Quarantine artifact captured: %s", rel)
-		if em.AddEvent(mtime, "Quarantine Database Modified", msg, "quarantine_event",
-			"RR-MacOS", "ResponseRay macOS Collector - Quarantine",
-			"darwin:quarantine:db", map[string]interface{}{
-				"file_path":     rel,
-				"file_size":     info.Size(),
-				"artifact_path": filepath.ToSlash(filepath.Join("quarantine", rel)),
-			}) {
-			added++
-		}
-		return nil
-	})
-	return added
-}
+// processMacQuarantine is superseded by processMacQuarantineDB in
+// quarantine.go which decodes the QuarantineEventsV2 SQLite database
+// rather than emitting a single "file captured" event per file.
 
 // ---------------------------------------------------------------------------
 // Recent items - emit one event per file under artifacts/recent_items.
