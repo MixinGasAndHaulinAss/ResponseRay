@@ -50,5 +50,8 @@ Requirements
 ------------
 
   * macOS 11 (Big Sur) or later.
+  * Apple Silicon (M1/M2/M3/M4 — arm64). The bundled binary is darwin/arm64.
+    Intel Macs need a darwin/amd64 build — see collector-macos/README.md
+    in the GitHub repo for cross-compile instructions.
   * root (sudo).
   * No runtime dependencies — the binary is fully static.

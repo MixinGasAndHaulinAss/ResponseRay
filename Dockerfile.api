@@ -33,7 +33,7 @@ RUN cd collector-linux \
 
 RUN cd collector-macos \
     && go mod download \
-    && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
+    && CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build \
         -trimpath -ldflags "-s -w" \
         -o /out/collectors/macos/responseray-collector-macos \
         ./cmd/responseray-collector-macos

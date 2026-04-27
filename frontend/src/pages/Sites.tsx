@@ -16,7 +16,7 @@ const COLLECTOR_ICON: Record<string, typeof Monitor> = {
 const COLLECTOR_FALLBACK: CollectorInfo[] = [
   { platform: 'windows', display_name: 'Windows Collector', filename: 'ResponseRayCollector.exe', description: 'VSS-aware live triage covering 300+ Windows artifacts (registry, EVTX, prefetch, USN, MFT, browsers).', architecture: 'x64', available: false, error: 'Loading…' },
   { platform: 'linux', display_name: 'Linux Collector', filename: 'responseray-collector-linux.tar.gz', description: 'Static Go binary in a tar.gz with INSTALL.txt. journald, packages, persistence, Docker, auditd.', architecture: 'amd64', available: false, error: 'Loading…' },
-  { platform: 'macos', display_name: 'macOS Collector', filename: 'responseray-collector-macos.tar.gz', description: 'Static Go binary in a tar.gz with INSTALL.txt. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.', architecture: 'amd64', available: false, error: 'Loading…' },
+  { platform: 'macos', display_name: 'macOS Collector', filename: 'responseray-collector-macos.tar.gz', description: 'Static Go binary (Apple Silicon) in a tar.gz with INSTALL.txt. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.', architecture: 'arm64', available: false, error: 'Loading…' },
   { platform: 'esxi', display_name: 'ESXi Collector', filename: 'responseray-collector-esxi.sh', description: 'POSIX shell script using esxcli/vim-cmd. Host config + VM metadata.', architecture: 'POSIX sh', available: false, error: 'Loading…' },
 ]
 

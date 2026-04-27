@@ -50,8 +50,8 @@ var collectorCatalog = []collectorSpec{
 		DisplayName:  "macOS Collector",
 		Filename:     "responseray-collector-macos.tar.gz",
 		ContentType:  "application/gzip",
-		Description:  "Static Go binary in a tar.gz with INSTALL.txt. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.",
-		Architecture: "amd64",
+		Description:  "Static Go binary (Apple Silicon) in a tar.gz with INSTALL.txt. Unified logs, launchd/btm, TCC, KnowledgeC, FSEvents, browsers.",
+		Architecture: "arm64",
 	},
 	{
 		Platform:     "esxi",

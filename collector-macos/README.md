@@ -6,7 +6,7 @@ A standalone macOS forensic artifact collector. Produces a `tar.gz` archive with
 
 ## Key Design Principles
 
-- **Single static binary** — Go 1.22 produces one self-contained executable (Universal 2 build is supported via `lipo`)
+- **Single static binary** — Go 1.22 produces one self-contained executable. The default ResponseRay build targets Apple Silicon (`darwin/arm64`); Intel (`darwin/amd64`) and Universal 2 builds via `lipo` are documented below.
 - **In-OS capture (no raw imaging)** — uses `dscl`, `system_profiler`, `log show`, plist + SQLite copies, `sysctl`, `ioreg`. Never reads raw disks. This works on T2/Apple Silicon hosts where direct disk access is restricted by SIP.
 - **Comprehensive macOS coverage** — 216+ evidence types including unified logs, ASL, launchd, login items, KnowledgeC, TCC, FSEvents, Quarantine events, Time Machine, Wireless history, Mail, Messages, browsers, and more
 - **TCC-aware** — when granted Full Disk Access, captures user-space TCC.db, KnowledgeC.db, Messages chat.db; without FDA, gracefully skips and reports the missing categories in the manifest
