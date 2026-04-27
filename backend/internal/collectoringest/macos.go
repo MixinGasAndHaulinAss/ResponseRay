@@ -1,19 +1,17 @@
-package directory
+package collectoringest
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/NCLGISA/ct-to-timesketch/internal/converter"
-	"github.com/NCLGISA/ct-to-timesketch/internal/progress"
 )
 
 // ProcessMacOS turns the data emitted by the ResponseRay macOS collector into
@@ -21,32 +19,34 @@ import (
 // objects (e.g. ps_auxwwe, lsof, netstat) plus a tree of artifacts (launch
 // agents, persistence files, plists, shell history, ssh, etc.) under the
 // artifacts/ directory.
-func ProcessMacOS(dirPath, artifactDir string, conv *converter.Converter, ts string) int {
+//
+// The dirPath argument is the extracted collector output root (the directory
+// containing manifest.json, live/, and artifacts/).
+func ProcessMacOS(em *Emitter, dirPath, ts string) int {
+	artifactDir := filepath.Join(dirPath, "artifacts")
 	total := 0
-	total += processMacProcesses(dirPath, conv, ts)
-	total += processMacNetwork(dirPath, conv, ts)
-	total += processMacFirewall(dirPath, conv, ts)
-	total += processMacBTM(dirPath, conv, ts)
-	total += processMacLaunchctl(dirPath, conv, ts)
-	total += processMacLaunchPlists(artifactDir, conv, ts)
-	total += processMacPersistenceTree(artifactDir, conv, ts)
-	total += processMacApplications(artifactDir, dirPath, conv, ts)
-	total += processMacUsers(dirPath, conv, ts)
-	total += processMacShellHistory(artifactDir, conv, ts)
-	total += processMacSSH(artifactDir, conv, ts)
-	total += processMacQuarantine(artifactDir, conv, ts)
-	total += processMacRecentItems(artifactDir, conv, ts)
-	total += processMacSystemInfo(dirPath, conv, ts)
-	total += processMacTimeMachine(dirPath, conv, ts)
+	total += processMacProcesses(em, dirPath, ts)
+	total += processMacNetwork(em, dirPath, ts)
+	total += processMacFirewall(em, dirPath, ts)
+	total += processMacBTM(em, dirPath, ts)
+	total += processMacLaunchctl(em, dirPath, ts)
+	total += processMacLaunchPlists(em, artifactDir, ts)
+	total += processMacPersistenceTree(em, artifactDir, ts)
+	total += processMacApplications(em, artifactDir, dirPath, ts)
+	total += processMacUsers(em, dirPath, ts)
+	total += processMacShellHistory(em, artifactDir, ts)
+	total += processMacSSH(em, artifactDir, ts)
+	total += processMacQuarantine(em, artifactDir, ts)
+	total += processMacRecentItems(em, artifactDir, ts)
+	total += processMacSystemInfo(em, dirPath, ts)
+	total += processMacTimeMachine(em, dirPath, ts)
+	log.Printf("collectoringest: macOS parsers added %d events", total)
 	return total
 }
 
-// ---------------------------------------------------------------------------
-// Processes - parse ps_auxwwe text dump
-// ---------------------------------------------------------------------------
-
-// macLiveBag reads a `live/<name>.json` file written by the macOS collector
-// where the JSON shape is `{"key1": "<text dump>", "key2": "<text dump>", ...}`.
+// macLiveBag reads a live/<name>.json file written by the macOS collector.
+// The collector emits these files as `{"key1": "<text dump>", ...}` rather
+// than arrays of structured records, so we flatten everything to strings.
 func macLiveBag(dirPath, filename string) (map[string]string, bool) {
 	p := filepath.Join(dirPath, "live", filename)
 	data, err := os.ReadFile(p)
@@ -72,14 +72,17 @@ func macLiveBag(dirPath, filename string) (map[string]string, bool) {
 	return out, true
 }
 
-// reSpace is reused for splitting whitespace-delimited columns.
 var reSpace = regexp.MustCompile(`\s+`)
 
-// processMacProcesses parses the `ps_auxwwe` block and emits one
+// ---------------------------------------------------------------------------
+// Processes - parse the ps_auxwwe text dump into running_process events.
+// ---------------------------------------------------------------------------
+
+// processMacProcesses parses the `ps auxwwe` block and emits one
 // running_process event per process.
 //
 // `ps auxwwe` columns: USER PID %CPU %MEM VSZ RSS TT STAT STARTED TIME COMMAND
-func processMacProcesses(dirPath string, conv *converter.Converter, ts string) int {
+func processMacProcesses(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "processes.json")
 	if !ok {
 		return 0
@@ -97,7 +100,6 @@ func processMacProcesses(dirPath string, conv *converter.Converter, ts string) i
 		line := scanner.Text()
 		if first {
 			first = false
-			// Header row.
 			if strings.HasPrefix(line, "USER") {
 				continue
 			}
@@ -105,7 +107,6 @@ func processMacProcesses(dirPath string, conv *converter.Converter, ts string) i
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		// Split into 11 fields (the 11th is the rest of the line = command + env)
 		fields := reSpace.Split(strings.TrimLeft(line, " "), 11)
 		if len(fields) < 11 {
 			continue
@@ -127,7 +128,7 @@ func processMacProcesses(dirPath string, conv *converter.Converter, ts string) i
 		}
 
 		// Some commands are extremely long because they include env vars; keep
-		// the executable + first ~100 chars in the message and store the full
+		// the executable + first ~120 chars in the message and store the full
 		// line as command_line.
 		exe := cmd
 		if i := strings.IndexByte(exe, ' '); i > 0 {
@@ -154,34 +155,27 @@ func processMacProcesses(dirPath string, conv *converter.Converter, ts string) i
 			"started":      started,
 			"cpu_time":     cputime,
 		}
-
-		if conv.AddEvent(ts, "Collection Time (Process Running)", msg, "running_process",
+		if em.AddEvent(ts, "Collection Time (Process Running)", msg, "running_process",
 			"RR-MacOS", "ResponseRay macOS Collector - ps auxwwe",
-			"ct:memory:process", attrs) {
+			"darwin:process:running", attrs) {
 			added++
 		}
-	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Processes (ps auxwwe): %d events", added))
 	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Network - parse netstat -an and lsof -i text dumps
+// Network - parse netstat -an and lsof -i text dumps.
 // ---------------------------------------------------------------------------
 
-func processMacNetwork(dirPath string, conv *converter.Converter, ts string) int {
+func processMacNetwork(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "network.json")
 	if !ok {
 		return 0
 	}
 	added := 0
-	added += parseNetstatText(bag, conv, ts)
-	added += parseLsofINetText(bag, conv, ts)
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Network connections: %d events", added))
-	}
+	added += parseNetstatText(em, bag, ts)
+	added += parseLsofINetText(em, bag, ts)
 	return added
 }
 
@@ -190,7 +184,7 @@ func processMacNetwork(dirPath string, conv *converter.Converter, ts string) int
 //	tcp4       0      0  10.4.0.5.443           54.85.10.2.49431       ESTABLISHED
 //	tcp46      0      0  *.443                  *.*                    LISTEN
 //	udp4       0      0  10.4.0.5.5353          *.*
-func parseNetstatText(bag map[string]string, conv *converter.Converter, ts string) int {
+func parseNetstatText(em *Emitter, bag map[string]string, ts string) int {
 	body := pickFirst(bag, "netstat_-an", "netstat_an")
 	if body == "" {
 		return 0
@@ -232,7 +226,6 @@ func parseNetstatText(bag map[string]string, conv *converter.Converter, ts strin
 		if len(fields) >= 6 {
 			state = fields[5]
 		}
-		// netstat formats addresses as a.b.c.d.PORT (last dot before PORT).
 		localIP, localPort := splitAddr(local)
 		remoteIP, remotePort := splitAddr(remote)
 
@@ -261,7 +254,7 @@ func parseNetstatText(bag map[string]string, conv *converter.Converter, ts strin
 			"remote_port":     remotePort,
 			"state":           state,
 		}
-		if conv.AddEvent(ts, "Collection Time (Connection Active)", msg, "active_connection",
+		if em.AddEvent(ts, "Collection Time (Connection Active)", msg, "active_connection",
 			"RR-MacOS", "ResponseRay macOS Collector - netstat",
 			"darwin:network:connection", attrs) {
 			added++
@@ -275,12 +268,11 @@ func parseNetstatText(bag map[string]string, conv *converter.Converter, ts strin
 //	mDNSRespo   229            _mdnsresponder    7u  IPv4  0xabcd      0t0  UDP *:5353
 //	sshd      1234                   root    3u  IPv4  0xefgh      0t0  TCP 10.4.0.5:22 (LISTEN)
 //	sshd      1234                   root    4u  IPv4  0xfff0      0t0  TCP 10.4.0.5:22->10.4.0.10:51022 (ESTABLISHED)
-func parseLsofINetText(bag map[string]string, conv *converter.Converter, ts string) int {
+func parseLsofINetText(em *Emitter, bag map[string]string, ts string) int {
 	body := pickFirst(bag, "lsof_-i", "lsof_i", "lsof")
 	if body == "" {
 		return 0
 	}
-	// Limit to net entries only (rows with TCP or UDP in column 8).
 	added := 0
 	scanner := bufio.NewScanner(strings.NewReader(body))
 	scanner.Buffer(make([]byte, 1024*1024), 4*1024*1024)
@@ -294,13 +286,11 @@ func parseLsofINetText(bag map[string]string, conv *converter.Converter, ts stri
 		if len(fields) < 9 {
 			continue
 		}
-		// fields: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME [STATE]
 		cmd := fields[0]
 		pid, _ := strconv.Atoi(fields[1])
 		user := fields[2]
 		nodeKind := ""
 		var nameStart int
-		// Find the column that's TCP or UDP (NODE in lsof output).
 		for i := 4; i < len(fields)-1; i++ {
 			if fields[i] == "TCP" || fields[i] == "UDP" {
 				nodeKind = fields[i]
@@ -357,7 +347,7 @@ func parseLsofINetText(bag map[string]string, conv *converter.Converter, ts stri
 			"process_name":    cmd,
 			"user_id":         user,
 		}
-		if conv.AddEvent(ts, "Collection Time (Connection Active)", msg, "active_connection",
+		if em.AddEvent(ts, "Collection Time (Connection Active)", msg, "active_connection",
 			"RR-MacOS", "ResponseRay macOS Collector - lsof -i",
 			"darwin:network:connection", attrs) {
 			added++
@@ -366,14 +356,12 @@ func parseLsofINetText(bag map[string]string, conv *converter.Converter, ts stri
 	return added
 }
 
-// splitAddr handles the netstat/lsof "ip.port" or "[ipv6]:port" format and
-// returns ip, port (as string).
+// splitAddr handles netstat/lsof "ip.port", "[ipv6]:port", "ip:port".
 func splitAddr(s string) (string, string) {
 	s = strings.TrimSpace(s)
 	if s == "" || s == "*" {
 		return "", ""
 	}
-	// IPv6 with brackets.
 	if strings.HasPrefix(s, "[") {
 		end := strings.Index(s, "]")
 		if end > 0 {
@@ -384,19 +372,15 @@ func splitAddr(s string) (string, string) {
 			return ip, rest
 		}
 	}
-	// netstat-style: ip.port
-	idx := strings.LastIndexByte(s, '.')
-	if idx > 0 {
+	if idx := strings.LastIndexByte(s, '.'); idx > 0 {
 		ip := s[:idx]
 		port := s[idx+1:]
-		// strip surrounding brackets if any
 		ip = strings.Trim(ip, "[]")
 		if ip == "*" {
 			ip = ""
 		}
 		return ip, port
 	}
-	// lsof "ip:port"
 	if idx := strings.LastIndexByte(s, ':'); idx > 0 {
 		return s[:idx], s[idx+1:]
 	}
@@ -404,34 +388,32 @@ func splitAddr(s string) (string, string) {
 }
 
 // ---------------------------------------------------------------------------
-// Firewall - parse alf_listapps text dump
+// Firewall - alf_global / alf_listapps / pfctl.
 // ---------------------------------------------------------------------------
 
-func processMacFirewall(dirPath string, conv *converter.Converter, ts string) int {
+func processMacFirewall(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "firewall.json")
 	if !ok {
 		return 0
 	}
 	added := 0
 	if g := strings.TrimSpace(bag["alf_global"]); g != "" {
-		if conv.AddEvent(ts, "Collection Time (OS Configuration)", "Application Firewall: "+oneLine(g), "os_config",
+		if em.AddEvent(ts, "Collection Time (OS Configuration)", "Application Firewall: "+oneLine(g), "os_config",
 			"RR-MacOS", "ResponseRay macOS Collector - Firewall State",
-			"ct:os:config_setting", map[string]interface{}{
-				"setting":     "ApplicationLevelFirewall",
-				"value":       oneLine(g),
-				"group":       "Firewall",
-				"detail":      g,
+			"darwin:os:config_setting", map[string]interface{}{
+				"setting": "ApplicationLevelFirewall",
+				"value":   oneLine(g),
+				"group":   "Firewall",
+				"detail":  g,
 			}) {
 			added++
 		}
 	}
 	if apps := bag["alf_listapps"]; apps != "" {
 		// alf_listapps text:
-		// Total number of apps = N
-		// 1 : /path/to/app
-		//      (Allow incoming connections)
-		// 2 : /path/to/app
-		// ...
+		//   Total number of apps = N
+		//   1 : /path/to/app
+		//        (Allow incoming connections)
 		scanner := bufio.NewScanner(strings.NewReader(apps))
 		scanner.Buffer(make([]byte, 1024*1024), 4*1024*1024)
 		var currentPath string
@@ -450,7 +432,7 @@ func processMacFirewall(dirPath string, conv *converter.Converter, ts string) in
 			}
 			rule := strings.Trim(t, "()")
 			msg := fmt.Sprintf("Firewall rule: %s -- %s", currentPath, rule)
-			if conv.AddEvent(ts, "Collection Time (Firewall Rule)", msg, "firewall_rule",
+			if em.AddEvent(ts, "Collection Time (Firewall Rule)", msg, "firewall_rule",
 				"RR-MacOS", "ResponseRay macOS Collector - Application Firewall",
 				"darwin:firewall:rule", map[string]interface{}{
 					"setting":  "alf_listapps",
@@ -467,9 +449,9 @@ func processMacFirewall(dirPath string, conv *converter.Converter, ts string) in
 		if pf == "" {
 			continue
 		}
-		if conv.AddEvent(ts, "Collection Time (OS Configuration)", fmt.Sprintf("pfctl %s captured (%d bytes)", key, len(pf)), "os_config",
+		if em.AddEvent(ts, "Collection Time (OS Configuration)", fmt.Sprintf("pfctl %s captured (%d bytes)", key, len(pf)), "os_config",
 			"RR-MacOS", "ResponseRay macOS Collector - PF Firewall",
-			"ct:os:config_setting", map[string]interface{}{
+			"darwin:os:config_setting", map[string]interface{}{
 				"setting": key,
 				"group":   "Firewall",
 				"detail":  pf,
@@ -477,26 +459,21 @@ func processMacFirewall(dirPath string, conv *converter.Converter, ts string) in
 			added++
 		}
 	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Firewall: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// BTM (Background Task Management) - parse sfltool dumpbtm text output
+// BTM (Background Task Management) - parse `sfltool dumpbtm` output.
 // ---------------------------------------------------------------------------
 
-func processMacBTM(dirPath string, conv *converter.Converter, ts string) int {
+func processMacBTM(em *Emitter, dirPath, ts string) int {
 	p := filepath.Join(dirPath, "live", "sfltool_dumpbtm.txt")
 	data, err := os.ReadFile(p)
 	if err != nil {
 		return 0
 	}
 	added := 0
-	// Records are separated by lines starting with " #N:".
-	blocks := splitBTMBlocks(string(data))
-	for _, b := range blocks {
+	for _, b := range splitBTMBlocks(string(data)) {
 		fields := parseBTMRecord(b)
 		if len(fields) == 0 {
 			continue
@@ -528,28 +505,25 @@ func processMacBTM(dirPath string, conv *converter.Converter, ts string) int {
 		}
 
 		attrs := map[string]interface{}{
-			"config_type":     "BackgroundTaskManagement",
-			"description":     label,
-			"details":         exe,
-			"location":        url,
-			"identifier":      ident,
-			"developer":       dev,
-			"item_type":       typ,
-			"disposition":     disp,
+			"config_type": "BackgroundTaskManagement",
+			"description": label,
+			"details":     exe,
+			"location":    url,
+			"identifier":  ident,
+			"developer":   dev,
+			"item_type":   typ,
+			"disposition": disp,
 		}
-		if conv.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
+		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - sfltool dumpbtm",
 			"darwin:btm:item", attrs) {
 			added++
 		}
 	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  BTM (sfltool dumpbtm): %d events", added))
-	}
 	return added
 }
 
-// splitBTMBlocks splits the sfltool dumpbtm output into individual records by
+// splitBTMBlocks splits sfltool dumpbtm output into individual records by
 // detecting lines like " #1:", " #2:", etc.
 func splitBTMBlocks(text string) []string {
 	lines := strings.Split(text, "\n")
@@ -585,7 +559,6 @@ func parseBTMRecord(block string) map[string]string {
 		if key == "" {
 			continue
 		}
-		// Only record keys we care about; sfltool output has many noise lines.
 		switch key {
 		case "Name", "Developer Name", "Type", "Flags", "Disposition", "Identifier", "URL", "Executable Path", "Generation", "Parent Identifier", "UUID":
 			out[key] = val
@@ -595,16 +568,15 @@ func parseBTMRecord(block string) map[string]string {
 }
 
 // ---------------------------------------------------------------------------
-// launchctl list - one running daemon per row
+// launchctl list - one row per loaded daemon/agent.
 // ---------------------------------------------------------------------------
 
-// launchctl list output:
+// processMacLaunchctl parses live/launchctl_list.txt:
 //
 //	PID	Status	Label
 //	-	0	com.apple.SharedFilelistd
 //	123	0	com.apple.tendril.agent
-//	-	78	org.example.failed
-func processMacLaunchctl(dirPath string, conv *converter.Converter, ts string) int {
+func processMacLaunchctl(em *Emitter, dirPath, ts string) int {
 	p := filepath.Join(dirPath, "live", "launchctl_list.txt")
 	data, err := os.ReadFile(p)
 	if err != nil {
@@ -654,27 +626,20 @@ func processMacLaunchctl(dirPath string, conv *converter.Converter, ts string) i
 			"pid":          pidStr,
 			"exit_status":  statusStr,
 		}
-		if conv.AddEvent(ts, "Collection Time (Service Configuration)", msg, "startup_item",
+		if em.AddEvent(ts, "Collection Time (Service Configuration)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - launchctl list",
 			"darwin:launchd:service", attrs) {
 			added++
 		}
 	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  launchctl list: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Launch agents/daemons - emit one startup_item per .plist file
+// Launch agents/daemons - emit one startup_item per .plist file (mtime + ts).
 // ---------------------------------------------------------------------------
 
-// processMacLaunchPlists walks artifacts/launch and emits an event per plist.
-// It uses the file modification time on disk as the timestamp (which is the
-// system's real plist mtime since the collector preserves it via copy or hard
-// link, but if not available falls back to the collection time).
-func processMacLaunchPlists(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacLaunchPlists(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "launch")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -699,10 +664,11 @@ func processMacLaunchPlists(artifactDir string, conv *converter.Converter, ts st
 		switch {
 		case strings.HasPrefix(rel, "users"+string(filepath.Separator)):
 			scope = "user"
-			origin = "/" + strings.ReplaceAll(rel, string(filepath.Separator), "/")
 			parts := strings.Split(rel, string(filepath.Separator))
 			if len(parts) >= 4 {
 				origin = "/Users/" + parts[1] + "/Library/" + strings.Join(parts[2:], "/")
+			} else {
+				origin = "/" + strings.ReplaceAll(rel, string(filepath.Separator), "/")
 			}
 		default:
 			scope = "system"
@@ -710,10 +676,8 @@ func processMacLaunchPlists(artifactDir string, conv *converter.Converter, ts st
 		}
 
 		label := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 
-		// Emit "Plist Modified" using mtime, plus an entry tied to collection
-		// time so users see the persistence even if mtime is bogus.
 		msg := fmt.Sprintf("LaunchAgent/Daemon plist: %s [%s]", label, scope)
 		attrs := map[string]interface{}{
 			"config_type":   "LaunchAgentDaemon",
@@ -726,32 +690,28 @@ func processMacLaunchPlists(artifactDir string, conv *converter.Converter, ts st
 			"label":         label,
 			"artifact_path": filepath.ToSlash(filepath.Join("launch", rel)),
 		}
-		if conv.AddEvent(mtime, "Plist Modified", msg, "startup_item",
+		if em.AddEvent(mtime, "Plist Modified", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - LaunchAgents/Daemons",
 			"darwin:launchd:plist", attrs) {
 			added++
 		}
-		// Also emit at collection time so this shows on the timeline regardless
-		// of historical plist mtimes.
-		cp := copyAttrs(attrs)
-		if conv.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
+		// Also emit at collection time so the persistence shows up on the
+		// timeline at the moment of acquisition regardless of mtime.
+		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - LaunchAgents/Daemons",
-			"darwin:launchd:plist", cp) {
+			"darwin:launchd:plist", copyAttrs(attrs)) {
 			added++
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  LaunchAgents/Daemons: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Persistence tree - emit one event per file in artifacts/persistence
+// Persistence tree - one event per file under artifacts/persistence.
 // ---------------------------------------------------------------------------
 
-func processMacPersistenceTree(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacPersistenceTree(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "persistence")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -778,15 +738,19 @@ func processMacPersistenceTree(artifactDir string, conv *converter.Converter, ts
 			}
 		}
 
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 		category := "persistence"
-		if strings.Contains(rel, "Extensions") || strings.Contains(rel, "SystemExtensions") {
+		switch {
+		case strings.Contains(rel, "Extensions") || strings.Contains(rel, "SystemExtensions"):
 			category = "kext_or_systemextension"
-		} else if strings.Contains(rel, "cron") || strings.HasPrefix(rel, "var/at") || strings.Contains(rel, "/cron/tabs") {
+		case strings.Contains(rel, "cron") || strings.HasPrefix(rel, "var/at") || strings.Contains(rel, "/cron/tabs"):
 			category = "cron"
-		} else if strings.HasSuffix(rel, "rc") || strings.HasSuffix(rel, "profile") || strings.HasSuffix(rel, ".bashrc") || strings.HasSuffix(rel, ".zshrc") || strings.HasSuffix(rel, ".zprofile") || strings.HasSuffix(rel, ".bash_profile") || strings.HasSuffix(rel, "rc.common") || strings.HasSuffix(rel, "rc.local") {
+		case strings.HasSuffix(rel, "rc") || strings.HasSuffix(rel, "profile") ||
+			strings.HasSuffix(rel, ".bashrc") || strings.HasSuffix(rel, ".zshrc") ||
+			strings.HasSuffix(rel, ".zprofile") || strings.HasSuffix(rel, ".bash_profile") ||
+			strings.HasSuffix(rel, "rc.common") || strings.HasSuffix(rel, "rc.local"):
 			category = "shell_init"
-		} else if strings.Contains(rel, "loginwindow") {
+		case strings.Contains(rel, "loginwindow"):
 			category = "login_hooks"
 		}
 
@@ -800,33 +764,29 @@ func processMacPersistenceTree(artifactDir string, conv *converter.Converter, ts
 			"file_size":     info.Size(),
 			"artifact_path": filepath.ToSlash(filepath.Join("persistence", rel)),
 		}
-		if conv.AddEvent(mtime, "File Modified", msg, "startup_item",
+		if em.AddEvent(mtime, "File Modified", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - Persistence",
 			"darwin:persistence:file", attrs) {
 			added++
 		}
-		cp := copyAttrs(attrs)
-		if conv.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
+		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - Persistence",
-			"darwin:persistence:file", cp) {
+			"darwin:persistence:file", copyAttrs(attrs)) {
 			added++
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Persistence files: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Applications - one installed_program per Info.plist + parse install_history
+// Applications - one installed_program per Info.plist + parse install_history.
 // ---------------------------------------------------------------------------
 
-func processMacApplications(artifactDir, dirPath string, conv *converter.Converter, ts string) int {
+func processMacApplications(em *Emitter, artifactDir, dirPath, ts string) int {
 	added := 0
 
-	// 1) Walk plist tree -- give each Info.plist an installed_program event keyed by mtime.
+	// 1) Walk the plist tree -- give each Info.plist an installed_program event.
 	root := filepath.Join(artifactDir, "applications")
 	if _, err := os.Stat(root); err == nil {
 		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -841,9 +801,8 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 				return nil
 			}
 			rel, _ := filepath.Rel(root, path)
-			// rel typically: "Applications/Foo.app/Contents/Info.plist"
 			origin := "/" + strings.ReplaceAll(rel, string(filepath.Separator), "/")
-			// Try to derive bundle name from the .app folder.
+
 			appName := ""
 			parts := strings.Split(rel, string(filepath.Separator))
 			for _, p := range parts {
@@ -856,7 +815,7 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 				appName = strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 			}
 
-			mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+			mtime := FileMtimeISO(info.ModTime())
 			msg := "Installed Application: " + appName
 			attrs := map[string]interface{}{
 				"program_name":  appName,
@@ -865,7 +824,7 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 				"plist_size":    info.Size(),
 				"artifact_path": filepath.ToSlash(filepath.Join("applications", rel)),
 			}
-			if conv.AddEvent(mtime, "Application Bundle Modified", msg, "installed_program",
+			if em.AddEvent(mtime, "Application Bundle Modified", msg, "installed_program",
 				"RR-MacOS", "ResponseRay macOS Collector - Applications",
 				"darwin:application:bundle", attrs) {
 				added++
@@ -881,10 +840,9 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 			ih = bag["installhistory"]
 		}
 		if ih != "" {
-			added += parseInstallHistory(ih, conv, ts)
+			added += parseInstallHistory(em, ih, ts)
 		}
-		// Also enqueue pkgutil --pkgs as installed_program rows (no install date,
-		// so use collection time).
+		// Also enqueue pkgutil --pkgs as installed_program rows.
 		if pkgs := strings.TrimSpace(bag["pkgutil_pkgs"]); pkgs != "" {
 			scanner := bufio.NewScanner(strings.NewReader(pkgs))
 			scanner.Buffer(make([]byte, 1024*1024), 4*1024*1024)
@@ -893,7 +851,7 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 				if name == "" {
 					continue
 				}
-				if conv.AddEvent(ts, "Collection Time (Package Installed)", "pkgutil package: "+name,
+				if em.AddEvent(ts, "Collection Time (Package Installed)", "pkgutil package: "+name,
 					"installed_program", "RR-MacOS", "ResponseRay macOS Collector - pkgutil",
 					"darwin:pkg:pkgutil", map[string]interface{}{
 						"program_name": name,
@@ -905,31 +863,23 @@ func processMacApplications(artifactDir, dirPath string, conv *converter.Convert
 			}
 		}
 	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Applications + install history: %d events", added))
-	}
 	return added
 }
 
 // parseInstallHistory parses macOS `system_profiler SPInstallHistoryDataType`
-// text output into installed_program events. The format is:
+// text output. The format is:
 //
 //	Installations:
 //
 //	    macOS 15.3.1:
-//
 //	      Version: 15.3.1
 //	      Source: Apple
 //	      Install Date: 5/8/25, 4:14 AM
 //
-//	    Foo Bar:
-//	      Version: ...
-//	      Install Date: 5/8/25, 4:16 AM
-//
 // "Install Date" uses the device's locale, so we accept m/d/yy[yy], h:mm a.
 var reInstallDate = regexp.MustCompile(`^(\d{1,2})/(\d{1,2})/(\d{2,4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)?`)
 
-func parseInstallHistory(body string, conv *converter.Converter, fallbackTS string) int {
+func parseInstallHistory(em *Emitter, body, fallbackTS string) int {
 	added := 0
 	scanner := bufio.NewScanner(strings.NewReader(body))
 	scanner.Buffer(make([]byte, 1024*1024), 4*1024*1024)
@@ -951,7 +901,7 @@ func parseInstallHistory(body string, conv *converter.Converter, fallbackTS stri
 		if source != "" {
 			msg += " (" + source + ")"
 		}
-		if conv.AddEvent(ts, tsDesc, msg, "installed_program",
+		if em.AddEvent(ts, tsDesc, msg, "installed_program",
 			"RR-MacOS", "ResponseRay macOS Collector - InstallHistory",
 			"darwin:install_history:entry", map[string]interface{}{
 				"program_name": name,
@@ -961,10 +911,7 @@ func parseInstallHistory(body string, conv *converter.Converter, fallbackTS stri
 			}) {
 			added++
 		}
-		name = ""
-		version = ""
-		source = ""
-		installDate = ""
+		name, version, source, installDate = "", "", "", ""
 	}
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -975,7 +922,6 @@ func parseInstallHistory(body string, conv *converter.Converter, fallbackTS stri
 		if t == "Installations:" {
 			continue
 		}
-		// New entry starts when the line is indented 4 spaces and ends with ":".
 		if strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "      ") && strings.HasSuffix(t, ":") {
 			flush()
 			name = strings.TrimSuffix(t, ":")
@@ -1000,9 +946,8 @@ func parseInstallHistory(body string, conv *converter.Converter, fallbackTS stri
 	return added
 }
 
-// parseInstallDate converts a macOS install_history "Install Date" string
-// into ISO 8601 in UTC. It assumes the device's locale matches the parser
-// here ("m/d/yy[yy], h:mm AM/PM").
+// parseInstallDate converts a macOS install_history "Install Date" string into
+// ISO 8601 ms UTC. Assumes the device locale matches "m/d/yy[yy], h:mm AM/PM".
 func parseInstallDate(s string) string {
 	m := reInstallDate.FindStringSubmatch(s)
 	if m == nil {
@@ -1031,10 +976,10 @@ func parseInstallDate(s string) string {
 }
 
 // ---------------------------------------------------------------------------
-// Users - parse dscacheutil_users text dump
+// Users - parse the dscacheutil_users text dump.
 // ---------------------------------------------------------------------------
 
-func processMacUsers(dirPath string, conv *converter.Converter, ts string) int {
+func processMacUsers(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "users.json")
 	if !ok {
 		return 0
@@ -1066,7 +1011,7 @@ func processMacUsers(dirPath string, conv *converter.Converter, ts string) int {
 		if hidden {
 			msg += " [system]"
 		}
-		if conv.AddEvent(ts, "Account Created/Modified", msg, "account_created",
+		if em.AddEvent(ts, "Account Created/Modified", msg, "account_created",
 			"RR-MacOS", "ResponseRay macOS Collector - dscacheutil",
 			"darwin:user:account", map[string]interface{}{
 				"username":    uname,
@@ -1096,17 +1041,14 @@ func processMacUsers(dirPath string, conv *converter.Converter, ts string) int {
 		}
 	}
 	flush()
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Users: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Shell history - emit one event per line
+// Shell history - emit one event per line under artifacts/shell_history.
 // ---------------------------------------------------------------------------
 
-func processMacShellHistory(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacShellHistory(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "shell_history")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1120,8 +1062,8 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 		if ierr != nil {
 			return nil
 		}
-		f, err := os.Open(path)
-		if err != nil {
+		f, ferr := os.Open(path)
+		if ferr != nil {
 			return nil
 		}
 		defer f.Close()
@@ -1133,7 +1075,7 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 		if len(parts) >= 2 {
 			user = parts[0]
 		}
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 		base := filepath.Base(path)
 
 		scanner := bufio.NewScanner(f)
@@ -1143,7 +1085,7 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 			lineno++
 			line := strings.TrimRight(scanner.Text(), "\r\n")
 			cmd := strings.TrimSpace(line)
-			// zsh extended-history format: ": <epoch>:<elapsed>;<command>"
+			// zsh extended history: ": <epoch>:<elapsed>;<command>".
 			cmdTS := mtime
 			if strings.HasPrefix(cmd, ": ") {
 				if semi := strings.Index(cmd, ";"); semi > 0 {
@@ -1151,7 +1093,7 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 					if colon := strings.Index(meta, ":"); colon > 0 {
 						epoch := strings.TrimSpace(meta[:colon])
 						if e, err := strconv.ParseInt(epoch, 10, 64); err == nil && e > 0 {
-							cmdTS = time.Unix(e, 0).UTC().Format("2006-01-02T15:04:05.000") + "Z"
+							cmdTS = EpochToISO(e)
 						}
 					}
 					cmd = cmd[semi+1:]
@@ -1168,7 +1110,7 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 			if user != "" {
 				msg += " (User: " + user + ")"
 			}
-			if conv.AddEvent(cmdTS, "Shell Command Recorded", msg, "shell_command",
+			if em.AddEvent(cmdTS, "Shell Command Recorded", msg, "shell_command",
 				"RR-MacOS", "ResponseRay macOS Collector - "+base,
 				"darwin:shell:history", map[string]interface{}{
 					"command":    cmd,
@@ -1181,17 +1123,14 @@ func processMacShellHistory(artifactDir string, conv *converter.Converter, ts st
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Shell history: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// SSH - authorized_keys / known_hosts / config files
+// SSH - authorized_keys / known_hosts / config files.
 // ---------------------------------------------------------------------------
 
-func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacSSH(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "ssh")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1212,10 +1151,10 @@ func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int
 		if len(parts) >= 3 && parts[0] == "users" {
 			user = parts[1]
 		}
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 
-		f, err := os.Open(path)
-		if err != nil {
+		f, ferr := os.Open(path)
+		if ferr != nil {
 			return nil
 		}
 		defer f.Close()
@@ -1242,7 +1181,7 @@ func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int
 				if user != "" {
 					msg += " (user: " + user + ")"
 				}
-				if conv.AddEvent(mtime, "SSH Authorized Key Added", msg, "ssh_authorized_key",
+				if em.AddEvent(mtime, "SSH Authorized Key Added", msg, "ssh_authorized_key",
 					"RR-MacOS", "ResponseRay macOS Collector - SSH",
 					"darwin:ssh:authorized_key", map[string]interface{}{
 						"user_id":     user,
@@ -1269,7 +1208,7 @@ func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int
 				if user != "" {
 					msg += " (user: " + user + ")"
 				}
-				if conv.AddEvent(mtime, "SSH Known Host Recorded", msg, "ssh_known_host",
+				if em.AddEvent(mtime, "SSH Known Host Recorded", msg, "ssh_known_host",
 					"RR-MacOS", "ResponseRay macOS Collector - SSH",
 					"darwin:ssh:known_host", map[string]interface{}{
 						"user_id":  user,
@@ -1284,9 +1223,9 @@ func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int
 			if user != "" {
 				msg += " (user: " + user + ")"
 			}
-			if conv.AddEvent(mtime, "SSH Config Modified", msg, "os_config",
+			if em.AddEvent(mtime, "SSH Config Modified", msg, "os_config",
 				"RR-MacOS", "ResponseRay macOS Collector - SSH",
-				"ct:os:config_setting", map[string]interface{}{
+				"darwin:os:config_setting", map[string]interface{}{
 					"setting":   "ssh_config",
 					"file_name": d.Name(),
 					"user_id":   user,
@@ -1297,17 +1236,14 @@ func processMacSSH(artifactDir string, conv *converter.Converter, ts string) int
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  SSH artifacts: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Quarantine - emit one event per file in artifacts/quarantine
+// Quarantine - emit one event per file under artifacts/quarantine.
 // ---------------------------------------------------------------------------
 
-func processMacQuarantine(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacQuarantine(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "quarantine")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1322,9 +1258,9 @@ func processMacQuarantine(artifactDir string, conv *converter.Converter, ts stri
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 		msg := fmt.Sprintf("Quarantine artifact captured: %s", rel)
-		if conv.AddEvent(mtime, "Quarantine Database Modified", msg, "quarantine_event",
+		if em.AddEvent(mtime, "Quarantine Database Modified", msg, "quarantine_event",
 			"RR-MacOS", "ResponseRay macOS Collector - Quarantine",
 			"darwin:quarantine:db", map[string]interface{}{
 				"file_path":     rel,
@@ -1335,17 +1271,14 @@ func processMacQuarantine(artifactDir string, conv *converter.Converter, ts stri
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Quarantine: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Recent items - emit one event per file in artifacts/recent_items
+// Recent items - emit one event per file under artifacts/recent_items.
 // ---------------------------------------------------------------------------
 
-func processMacRecentItems(artifactDir string, conv *converter.Converter, ts string) int {
+func processMacRecentItems(em *Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "recent_items")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1365,12 +1298,12 @@ func processMacRecentItems(artifactDir string, conv *converter.Converter, ts str
 		if len(parts) >= 3 && parts[0] == "users" {
 			user = parts[1]
 		}
-		mtime := info.ModTime().UTC().Format(time.RFC3339Nano)
+		mtime := FileMtimeISO(info.ModTime())
 		msg := fmt.Sprintf("Recent items file: %s", filepath.Base(rel))
 		if user != "" {
 			msg += " (user: " + user + ")"
 		}
-		if conv.AddEvent(mtime, "Recent Items Modified", msg, "file_access",
+		if em.AddEvent(mtime, "Recent Items Modified", msg, "file_access",
 			"RR-MacOS", "ResponseRay macOS Collector - Recent Items",
 			"darwin:recent_items:file", map[string]interface{}{
 				"file_path":     rel,
@@ -1383,17 +1316,14 @@ func processMacRecentItems(artifactDir string, conv *converter.Converter, ts str
 		}
 		return nil
 	})
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Recent items: %d events", added))
-	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// System info - SIP, Gatekeeper, FileVault status
+// System info - SIP, Gatekeeper, FileVault, OS version, kernel.
 // ---------------------------------------------------------------------------
 
-func processMacSystemInfo(dirPath string, conv *converter.Converter, ts string) int {
+func processMacSystemInfo(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "system_info.json")
 	if !ok {
 		return 0
@@ -1407,61 +1337,59 @@ func processMacSystemInfo(dirPath string, conv *converter.Converter, ts string) 
 		{"uname", "Kernel", "System"},
 	}
 	for _, p := range pairs {
-		if v := strings.TrimSpace(bag[p.key]); v != "" {
-			val := oneLine(v)
-			msg := fmt.Sprintf("System: %s = %s", p.label, val)
-			if conv.AddEvent(ts, "Collection Time (OS Configuration)", msg, "os_config",
-				"RR-MacOS", "ResponseRay macOS Collector - SystemInfo",
-				"ct:os:config_setting", map[string]interface{}{
-					"setting": p.label,
-					"value":   val,
-					"group":   p.group,
-					"detail":  v,
-				}) {
-				added++
-			}
+		v := strings.TrimSpace(bag[p.key])
+		if v == "" {
+			continue
 		}
-	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  System info: %d events", added))
+		val := oneLine(v)
+		msg := fmt.Sprintf("System: %s = %s", p.label, val)
+		if em.AddEvent(ts, "Collection Time (OS Configuration)", msg, "os_config",
+			"RR-MacOS", "ResponseRay macOS Collector - SystemInfo",
+			"darwin:os:config_setting", map[string]interface{}{
+				"setting": p.label,
+				"value":   val,
+				"group":   p.group,
+				"detail":  v,
+			}) {
+			added++
+		}
 	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// Time Machine
+// Time Machine.
 // ---------------------------------------------------------------------------
 
-func processMacTimeMachine(dirPath string, conv *converter.Converter, ts string) int {
+func processMacTimeMachine(em *Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "timemachine.json")
 	if !ok {
 		return 0
 	}
 	added := 0
 	for _, key := range []string{"destinationinfo", "latestbackup", "status"} {
-		if v := strings.TrimSpace(bag[key]); v != "" {
-			val := oneLine(v)
-			msg := fmt.Sprintf("Time Machine %s: %s", key, val)
-			if conv.AddEvent(ts, "Collection Time (Backup Configuration)", msg, "os_config",
-				"RR-MacOS", "ResponseRay macOS Collector - Time Machine",
-				"ct:os:config_setting", map[string]interface{}{
-					"setting": "TimeMachine_" + key,
-					"value":   val,
-					"group":   "Backup",
-					"detail":  v,
-				}) {
-				added++
-			}
+		v := strings.TrimSpace(bag[key])
+		if v == "" {
+			continue
 		}
-	}
-	if added > 0 {
-		progress.Info(fmt.Sprintf("  Time Machine: %d events", added))
+		val := oneLine(v)
+		msg := fmt.Sprintf("Time Machine %s: %s", key, val)
+		if em.AddEvent(ts, "Collection Time (Backup Configuration)", msg, "os_config",
+			"RR-MacOS", "ResponseRay macOS Collector - Time Machine",
+			"darwin:os:config_setting", map[string]interface{}{
+				"setting": "TimeMachine_" + key,
+				"value":   val,
+				"group":   "Backup",
+				"detail":  v,
+			}) {
+			added++
+		}
 	}
 	return added
 }
 
 // ---------------------------------------------------------------------------
-// helpers
+// Helpers.
 // ---------------------------------------------------------------------------
 
 func oneLine(s string) string {

@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/responseray/responseray/internal/collectoringest"
 	"github.com/responseray/responseray/internal/db"
 	"github.com/responseray/responseray/internal/handlers"
 	"github.com/responseray/responseray/internal/ingest"
@@ -135,11 +136,13 @@ func processUpload(ctx context.Context, pool *pgxpool.Pool, rc *redis.Client, in
 	isCollectorArchive := isCollectorZip || isCollectorTar
 
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		var cmd *exec.Cmd
-
 		if isCollectorArchive {
 			// ResponseRay Collector archive (.zip from Windows; .tar.gz from
-			// Linux/macOS/ESXi). Extract and run ct-to-timesketch in --directory mode.
+			// Linux/macOS/ESXi). Extract and dispatch by platform: macOS goes
+			// through the in-process collectoringest pipeline; Windows still
+			// uses ct-to-timesketch's --directory mode (which carries all the
+			// Windows artifact extractors). Linux/ESXi will fall back to the
+			// ct-to-timesketch path until they get native parsers too.
 			extractDir := filepath.Join(uploadDir, uploadID.String(), "extracted")
 			os.MkdirAll(extractDir, 0755)
 
@@ -155,38 +158,51 @@ func processUpload(ctx context.Context, pool *pgxpool.Pool, rc *redis.Client, in
 				return fmt.Errorf("archive extraction: %w", extractErr)
 			}
 
-		// Find the actual directory containing manifest.json
-		manifestDir := findManifestDir(extractDir)
-		if manifestDir == "" {
-			setError(ctx, pool, rc, uploadID, "manifest.json not found in zip archive")
-			return fmt.Errorf("manifest.json not found in extracted zip")
-		}
+			manifestDir := findManifestDir(extractDir)
+			if manifestDir == "" {
+				setError(ctx, pool, rc, uploadID, "manifest.json not found in archive")
+				return fmt.Errorf("manifest.json not found in extracted archive")
+			}
 
-		cmd = exec.CommandContext(ctx, ctBinary,
-			"--directory", manifestDir,
-			"--output", outputPath,
-			"--artifacts-dir", artifactDir,
-			"--cloudrules")
+			if _, _, err := collectoringest.Run(manifestDir, outputPath); err != nil {
+				if !collectoringest.IsUnsupportedPlatform(err) {
+					setError(ctx, pool, rc, uploadID, fmt.Sprintf("collectoringest failed: %v", err))
+					return fmt.Errorf("collectoringest: %w", err)
+				}
+				// Platform not yet handled in-process -- fall back to
+				// ct-to-timesketch's --directory mode (current behavior for
+				// Windows, etc.).
+				log.Printf("collectoringest skipped (%v), falling back to ct-to-timesketch", err)
+				cmd := exec.CommandContext(ctx, ctBinary,
+					"--directory", manifestDir,
+					"--output", outputPath,
+					"--artifacts-dir", artifactDir,
+					"--cloudrules")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				if err := cmd.Run(); err != nil {
+					setError(ctx, pool, rc, uploadID, fmt.Sprintf("ct-to-timesketch failed: %v", err))
+					return fmt.Errorf("ct-to-timesketch: %w", err)
+				}
+			}
 		} else {
-			// CyberTriage .json.gz -- existing flow
-			cmd = exec.CommandContext(ctx, ctBinary, inputPath,
+			// Legacy CyberTriage .json.gz -- still handled by ct-to-timesketch.
+			cmd := exec.CommandContext(ctx, ctBinary, inputPath,
 				"--output", outputPath,
 				"--artifacts-dir", artifactDir,
 				"--cloudrules")
-		}
-
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Run(); err != nil {
-			setError(ctx, pool, rc, uploadID, fmt.Sprintf("ct-to-timesketch failed: %v", err))
-			return fmt.Errorf("ct-to-timesketch: %w", err)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				setError(ctx, pool, rc, uploadID, fmt.Sprintf("ct-to-timesketch failed: %v", err))
+				return fmt.Errorf("ct-to-timesketch: %w", err)
+			}
 		}
 	} else {
-		log.Printf("JSONL already exists at %s, skipping ct-to-timesketch", outputPath)
+		log.Printf("JSONL already exists at %s, skipping parser stage", outputPath)
 	}
 
-	log.Printf("ct-to-timesketch complete, counting lines...")
+	log.Printf("Parser stage complete, counting lines...")
 	rdb.UpdateProgressStage(ctx, rc, uploadID, "preparing")
 
 	totalLines, err := ingest.CountLines(outputPath)
