@@ -47,9 +47,9 @@ RUN cd collector-macos \
 # `unifiedlog_iterator` binary used by collectoringest/macos to parse
 # .tracev3 files captured from a Mac's diagnostics archive.
 # ----------------------------------------------------------------------
-# mandiant/macos-UnifiedLogs requires Rust edition 2024 (stabilized in 1.85+),
-# so pin to the 1.85 toolchain on bookworm.
-FROM rust:1.85-bookworm AS unifiedlog-builder
+# mandiant/macos-UnifiedLogs requires Rust edition 2024 plus rustc >= 1.88 for
+# its current dependency tree (plist, time, time-macros), so pin to 1.90.
+FROM rust:1.90-bookworm AS unifiedlog-builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
