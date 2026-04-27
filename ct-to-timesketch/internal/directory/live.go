@@ -48,6 +48,13 @@ func ProcessLiveData(dirPath string, conv *converter.Converter, collectionTime s
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			continue
 		}
+		// Skip non-array JSON files: Linux/macOS collectors reuse some of the
+		// same filenames (e.g. processes.json) but emit dictionary shapes that
+		// these handlers can't parse. Platform-specific extractors handle them
+		// separately.
+		if !jsonIsArray(path) {
+			continue
+		}
 		n := h.handler(path, conv, collectionTime)
 		if n > 0 {
 			progress.Info(fmt.Sprintf("  %s: %d events", h.filename, n))
@@ -58,17 +65,30 @@ func ProcessLiveData(dirPath string, conv *converter.Converter, collectionTime s
 	return total
 }
 
-// ProcessFilesystemJSONL reads live/filesystem.jsonl and creates MACB file timeline events.
-// Returns the number of events added.
+// ProcessFilesystemJSONL reads the collector's filesystem timeline file and
+// emits MACB events. It supports both the Windows shape
+// (live/filesystem.jsonl with modified/accessed/created field names) and the
+// Linux/macOS shape (live/filesystem_timeline.ndjson with mtime/atime/ctime/btime
+// field names). Returns the number of events added.
 func ProcessFilesystemJSONL(dirPath string, conv *converter.Converter) int {
-	fsPath := filepath.Join(dirPath, "live", "filesystem.jsonl")
-	if _, err := os.Stat(fsPath); os.IsNotExist(err) {
+	candidates := []string{
+		filepath.Join(dirPath, "live", "filesystem.jsonl"),
+		filepath.Join(dirPath, "live", "filesystem_timeline.ndjson"),
+	}
+	var fsPath string
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			fsPath = c
+			break
+		}
+	}
+	if fsPath == "" {
 		return 0
 	}
 
 	f, err := os.Open(fsPath)
 	if err != nil {
-		progress.Warning(fmt.Sprintf("Cannot open filesystem.jsonl: %v", err))
+		progress.Warning(fmt.Sprintf("Cannot open %s: %v", filepath.Base(fsPath), err))
 		return 0
 	}
 	defer f.Close()
@@ -84,6 +104,7 @@ func ProcessFilesystemJSONL(dirPath string, conv *converter.Converter) int {
 			progress.ProgressLine("Filesystem: %d entries processed (%d events)", lineCount, total)
 		}
 
+		// Tolerate both Windows and Linux/macOS field naming conventions.
 		var entry struct {
 			Path      string `json:"path"`
 			Name      string `json:"name"`
@@ -93,35 +114,81 @@ func ProcessFilesystemJSONL(dirPath string, conv *converter.Converter) int {
 			Modified  string `json:"modified"`
 			Accessed  string `json:"accessed"`
 			Extension string `json:"extension"`
+			MTime     string `json:"mtime"`
+			ATime     string `json:"atime"`
+			CTime     string `json:"ctime"`
+			BTime     string `json:"btime"`
+			Mode      string `json:"mode"`
 		}
 		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
 			continue
 		}
 
+		// Coalesce the two field naming conventions.
+		modified := entry.Modified
+		if modified == "" {
+			modified = entry.MTime
+		}
+		accessed := entry.Accessed
+		if accessed == "" {
+			accessed = entry.ATime
+		}
+		// "created" on Windows == file creation time; on POSIX it is birth time
+		// when available, falling back to inode change time.
+		created := entry.Created
+		if created == "" {
+			created = entry.BTime
+		}
+		if created == "" {
+			created = entry.CTime
+		}
+
+		isDir := entry.IsDir
+		if !isDir && entry.Mode != "" && len(entry.Mode) > 0 && entry.Mode[0] == 'd' {
+			isDir = true
+		}
+
+		// Derive name from path if not supplied (Linux/macOS shape only has path).
+		name := entry.Name
+		if name == "" {
+			name = filepath.Base(entry.Path)
+		}
+
 		prefix := "File"
 		metaType := "File"
-		if entry.IsDir {
+		if isDir {
 			prefix = "Directory"
 			metaType = "Dir"
 		}
 
 		baseAttrs := map[string]interface{}{
 			"file_path": entry.Path,
-			"file_name": entry.Name,
+			"file_name": name,
 			"file_size": entry.Size,
 			"meta_type": metaType,
 		}
 		if entry.Extension != "" {
 			baseAttrs["file_extension"] = entry.Extension
 		}
+		if entry.Mode != "" {
+			baseAttrs["file_mode"] = entry.Mode
+		}
 
 		macbFields := []struct {
 			ts   string
 			desc string
 		}{
-			{entry.Modified, "File Modified"},
-			{entry.Accessed, "File Accessed"},
-			{entry.Created, "File Created"},
+			{modified, "File Modified"},
+			{accessed, "File Accessed"},
+			{created, "File Created"},
+		}
+		// Inode/metadata change timestamp is unique to POSIX -- only emit it
+		// if the entry has a separate ctime that differs from btime.
+		if entry.CTime != "" && entry.CTime != created {
+			macbFields = append(macbFields, struct {
+				ts   string
+				desc string
+			}{entry.CTime, "Inode Changed"})
 		}
 
 		for _, f := range macbFields {
@@ -735,4 +802,31 @@ func copyAttrs(m map[string]interface{}) map[string]interface{} {
 		cp[k] = v
 	}
 	return cp
+}
+
+// jsonIsArray returns true if the first non-whitespace, non-BOM byte of the
+// file at p is '['. It is used to tell the Windows-style live handlers (which
+// expect arrays of structured objects) apart from the macOS collector's
+// dictionary-of-text shape.
+func jsonIsArray(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	buf := make([]byte, 64)
+	n, _ := f.Read(buf)
+	for i := 0; i < n; i++ {
+		c := buf[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+			continue
+		}
+		// Skip UTF-8 BOM if present.
+		if c == 0xEF && i+2 < n && buf[i+1] == 0xBB && buf[i+2] == 0xBF {
+			i += 2
+			continue
+		}
+		return c == '['
+	}
+	return false
 }

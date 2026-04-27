@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/NCLGISA/ct-to-timesketch/internal/cache"
 	"github.com/NCLGISA/ct-to-timesketch/internal/converter"
@@ -53,26 +54,36 @@ func Process(dirPath, artifactDir string, conv *converter.Converter) (string, *c
 	}
 	progress.Info(fmt.Sprintf("Indexed %d artifact files in %s", n, artifactDir))
 
-	// Step 3: Run all registered extractors on the file artifacts
-	names := extractors.ListNames()
-	sort.Strings(names)
-	for _, name := range names {
-		if name == "entra" || name == "mdo" {
-			continue
+	platform := strings.ToLower(strings.TrimSpace(manifest.Platform))
+	isWindows := platform == "" || platform == "windows"
+
+	// Step 3: Run Windows-specific artifact extractors only on Windows collections.
+	// Linux/macOS/ESXi data does not contain $MFT, EVTX, Registry hives, Prefetch,
+	// LNK, ShellBags, SRUM, BAM, ActivitiesCache, etc., so running those parsers
+	// just spams empty output.
+	if isWindows {
+		names := extractors.ListNames()
+		sort.Strings(names)
+		for _, name := range names {
+			if name == "entra" || name == "mdo" {
+				continue
+			}
+			ext := extractors.Get(name)
+			if ext == nil {
+				continue
+			}
+			progress.Header(fmt.Sprintf("EXTRACTING: %s", ext.Description()))
+			timer := progress.NewStepTimer(name)
+			count, err := ext.Extract("", conv, idx)
+			if err != nil {
+				progress.Warning(fmt.Sprintf("%s: %v", name, err))
+			} else if count > 0 {
+				progress.Info(fmt.Sprintf("  Added %d events", count))
+			}
+			timer.Done()
 		}
-		ext := extractors.Get(name)
-		if ext == nil {
-			continue
-		}
-		progress.Header(fmt.Sprintf("EXTRACTING: %s", ext.Description()))
-		timer := progress.NewStepTimer(name)
-		count, err := ext.Extract("", conv, idx)
-		if err != nil {
-			progress.Warning(fmt.Sprintf("%s: %v", name, err))
-		} else if count > 0 {
-			progress.Info(fmt.Sprintf("  Added %d events", count))
-		}
-		timer.Done()
+	} else {
+		progress.Info(fmt.Sprintf("Platform %q -- skipping Windows-only artifact extractors", platform))
 	}
 
 	// Step 4: Process live system state data
@@ -82,7 +93,17 @@ func Process(dirPath, artifactDir string, conv *converter.Converter) (string, *c
 	progress.Info(fmt.Sprintf("Live data: %d total events", liveCount))
 	timer.Done()
 
-	// Step 5: Process filesystem enumeration (MACB timeline)
+	// Step 5: Platform-specific extractors for non-Windows collections.
+	switch platform {
+	case "macos":
+		progress.Header("MACOS ARTIFACTS")
+		mt := progress.NewStepTimer("macOS artifacts")
+		macCount := ProcessMacOS(dirPath, artifactDir, conv, manifest.CollectionTimestamp)
+		progress.Info(fmt.Sprintf("macOS artifacts: %d total events", macCount))
+		mt.Done()
+	}
+
+	// Step 6: Process filesystem enumeration (MACB timeline)
 	// Only use filesystem.jsonl if MFT extractor didn't produce events
 	// (MFT provides better coverage: deleted files + $FN timestamps)
 	mftEvents := conv.CountByType("file_timeline") + conv.CountByType("file_timeline_fn")
