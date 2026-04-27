@@ -47,7 +47,9 @@ RUN cd collector-macos \
 # `unifiedlog_iterator` binary used by collectoringest/macos to parse
 # .tracev3 files captured from a Mac's diagnostics archive.
 # ----------------------------------------------------------------------
-FROM rust:1.83-bookworm AS unifiedlog-builder
+# mandiant/macos-UnifiedLogs requires Rust edition 2024 (stabilized in 1.85+),
+# so pin to the 1.85 toolchain on bookworm.
+FROM rust:1.85-bookworm AS unifiedlog-builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
@@ -58,7 +60,9 @@ RUN git clone --depth 1 https://github.com/mandiant/macos-UnifiedLogs.git \
     && cd macos-UnifiedLogs/examples/unifiedlog_iterator \
     && cargo build --release \
     && cp ../../target/release/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator \
-    && strip /usr/local/bin/unifiedlog_iterator || true
+    && (strip /usr/local/bin/unifiedlog_iterator || true) \
+    && /usr/local/bin/unifiedlog_iterator --help >/dev/null 2>&1 || true \
+    && ls -l /usr/local/bin/unifiedlog_iterator
 
 # ----------------------------------------------------------------------
 # Stage 2: build the Windows .NET collector as a self-contained single-file exe.
