@@ -1,4 +1,11 @@
-package collectoringest
+// Package core holds the shared building blocks used by every per-platform
+// parser under collectoringest/{macos,linux,esxi}: the timeline Event type,
+// the Emitter that accumulates and dedupes events, the Manifest reader, and
+// timestamp normalization helpers.
+//
+// Platform packages import core; the top-level collectoringest package wires
+// core + each platform together via Run().
+package core
 
 import (
 	"bufio"
@@ -18,7 +25,7 @@ type Event map[string]interface{}
 // message, event_type) so calling AddEvent twice for the same logical event
 // is a no-op.
 //
-// Events are kept in memory because a typical macOS collector produces well
+// Events are kept in memory because a typical collector run produces well
 // under 100k timeline events; if that ever changes we can swap this for a
 // streaming writer, but right now keeping them in memory means we can preserve
 // dedupe semantics without a second pass.
@@ -43,8 +50,8 @@ func NewEmitter(hostname string) *Emitter {
 // AddEvent appends a normalized timeline event. Returns true if the event was
 // added (false if it was a duplicate or lacked a parseable datetime).
 //
-// The signature matches the ct-to-timesketch Converter.AddEvent so existing
-// per-platform parsers can be ported with minimal change.
+// The signature mirrors the historical ct-to-timesketch Converter.AddEvent so
+// existing per-platform parsers can be ported with minimal change.
 func (e *Emitter) AddEvent(datetime, timestampDesc, message, eventType, sourceShort, sourceLong, dataType string, attrs map[string]interface{}) bool {
 	if datetime == "" {
 		return false
@@ -95,6 +102,9 @@ func (e *Emitter) AddEvent(datetime, timestampDesc, message, eventType, sourceSh
 	return true
 }
 
+// Hostname returns the hostname this emitter stamps onto every event.
+func (e *Emitter) Hostname() string { return e.hostname }
+
 // Count returns the total number of unique events accumulated.
 func (e *Emitter) Count() int { return len(e.events) }
 
@@ -134,10 +144,10 @@ func (e *Emitter) WriteJSONL(path string) (int, error) {
 	return len(e.events), nil
 }
 
-// copyAttrs returns a shallow copy of an attribute map. Used by parsers that
+// CopyAttrs returns a shallow copy of an attribute map. Used by parsers that
 // want to emit the same event under two different (datetime, timestamp_desc)
 // pairs (e.g. file mtime AND collection time) without aliasing the map.
-func copyAttrs(m map[string]interface{}) map[string]interface{} {
+func CopyAttrs(m map[string]interface{}) map[string]interface{} {
 	cp := make(map[string]interface{}, len(m))
 	for k, v := range m {
 		cp[k] = v

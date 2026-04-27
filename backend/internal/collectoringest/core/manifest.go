@@ -1,12 +1,4 @@
-// Package collectoringest converts a ResponseRay Collector output directory
-// (macOS / Linux / ESXi for now) directly into the timeline.jsonl format the
-// existing backend ingester consumes. It is the in-process replacement for
-// piping our own collector archives through ct-to-timesketch.
-//
-// ct-to-timesketch is intentionally not imported from here -- that tool's job
-// is converting CyberTriage CT captures, not parsing ResponseRay-native
-// collector output.
-package collectoringest
+package core
 
 import (
 	"encoding/json"

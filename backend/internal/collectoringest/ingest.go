@@ -1,9 +1,29 @@
+// Package collectoringest converts a ResponseRay collector output directory
+// (Windows / macOS / Linux / ESXi) directly into the timeline.jsonl format
+// the existing backend ingester consumes. It is the in-process replacement
+// for piping our own collector archives through ct-to-timesketch.
+//
+// The package itself just dispatches to per-platform sub-packages:
+//
+//	collectoringest/core   shared types: Emitter, Manifest, time helpers
+//	collectoringest/macos  parsers for the macOS collector
+//	collectoringest/linux  parsers for the Linux collector
+//	collectoringest/esxi   parsers for the ESXi collector
+//
+// ct-to-timesketch is intentionally not imported from anywhere in this tree
+// -- that tool's job is converting CyberTriage CT captures, not parsing
+// ResponseRay-native collector output.
 package collectoringest
 
 import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/responseray/responseray/internal/collectoringest/core"
+	"github.com/responseray/responseray/internal/collectoringest/esxi"
+	"github.com/responseray/responseray/internal/collectoringest/linux"
+	"github.com/responseray/responseray/internal/collectoringest/macos"
 )
 
 // Run reads the manifest from the extracted collector directory, dispatches
@@ -14,7 +34,7 @@ import (
 // so the worker can fall back to ct-to-timesketch (which still owns the
 // Windows artifact extractors).
 func Run(extractedDir, outputPath string) (hostname string, count int, err error) {
-	manifest, err := ParseManifest(extractedDir)
+	manifest, err := core.ParseManifest(extractedDir)
 	if err != nil {
 		return "", 0, err
 	}
@@ -23,13 +43,24 @@ func Run(extractedDir, outputPath string) (hostname string, count int, err error
 
 	log.Printf("collectoringest: host=%s platform=%s os=%s", manifest.Hostname, platform, manifest.OsVersion)
 
-	em := NewEmitter(manifest.Hostname)
+	em := core.NewEmitter(manifest.Hostname)
 
 	switch platform {
 	case "macos":
-		ProcessMacOS(em, extractedDir, manifest.CollectionTimestamp)
+		macos.Process(em, extractedDir, manifest.CollectionTimestamp)
+	case "linux":
+		linux.Process(em, extractedDir, manifest.CollectionTimestamp)
+	case "esxi":
+		esxi.Process(em, extractedDir, manifest.CollectionTimestamp)
 	default:
 		return hostname, 0, &ErrUnsupportedPlatform{Platform: platform}
+	}
+
+	if em.Count() == 0 {
+		// Platform handler exists but produced nothing. Surface that as
+		// "unsupported" so the worker still falls back to ct-to-timesketch
+		// rather than writing an empty timeline.jsonl.
+		return hostname, 0, &ErrUnsupportedPlatform{Platform: platform + "(empty)"}
 	}
 
 	n, err := em.WriteJSONL(outputPath)

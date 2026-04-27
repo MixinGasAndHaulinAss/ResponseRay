@@ -1,4 +1,9 @@
-package collectoringest
+// Package macos converts the data emitted by the ResponseRay macOS collector
+// into normalized timeline events. The collector writes text dumps inside
+// live/*.json objects (e.g. ps_auxwwe, lsof, netstat) plus a tree of raw
+// artifacts (launch agents, persistence files, plists, shell history, ssh,
+// etc.) under the artifacts/ directory.
+package macos
 
 import (
 	"bufio"
@@ -12,17 +17,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/responseray/responseray/internal/collectoringest/core"
 )
 
-// ProcessMacOS turns the data emitted by the ResponseRay macOS collector into
-// timeline events. The macOS collector emits text dumps inside live/*.json
-// objects (e.g. ps_auxwwe, lsof, netstat) plus a tree of artifacts (launch
-// agents, persistence files, plists, shell history, ssh, etc.) under the
-// artifacts/ directory.
-//
-// The dirPath argument is the extracted collector output root (the directory
-// containing manifest.json, live/, and artifacts/).
-func ProcessMacOS(em *Emitter, dirPath, ts string) int {
+// Process is the entry point invoked by collectoringest.Run when the manifest
+// platform is "macos". The dirPath argument is the extracted collector output
+// root (the directory containing manifest.json, live/, and artifacts/).
+func Process(em *core.Emitter, dirPath, ts string) int {
 	artifactDir := filepath.Join(dirPath, "artifacts")
 	total := 0
 	total += processMacProcesses(em, dirPath, ts)
@@ -40,7 +42,7 @@ func ProcessMacOS(em *Emitter, dirPath, ts string) int {
 	total += processMacRecentItems(em, artifactDir, ts)
 	total += processMacSystemInfo(em, dirPath, ts)
 	total += processMacTimeMachine(em, dirPath, ts)
-	log.Printf("collectoringest: macOS parsers added %d events", total)
+	log.Printf("collectoringest/macos: parsers added %d events", total)
 	return total
 }
 
@@ -82,7 +84,7 @@ var reSpace = regexp.MustCompile(`\s+`)
 // running_process event per process.
 //
 // `ps auxwwe` columns: USER PID %CPU %MEM VSZ RSS TT STAT STARTED TIME COMMAND
-func processMacProcesses(em *Emitter, dirPath, ts string) int {
+func processMacProcesses(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "processes.json")
 	if !ok {
 		return 0
@@ -168,7 +170,7 @@ func processMacProcesses(em *Emitter, dirPath, ts string) int {
 // Network - parse netstat -an and lsof -i text dumps.
 // ---------------------------------------------------------------------------
 
-func processMacNetwork(em *Emitter, dirPath, ts string) int {
+func processMacNetwork(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "network.json")
 	if !ok {
 		return 0
@@ -184,7 +186,7 @@ func processMacNetwork(em *Emitter, dirPath, ts string) int {
 //	tcp4       0      0  10.4.0.5.443           54.85.10.2.49431       ESTABLISHED
 //	tcp46      0      0  *.443                  *.*                    LISTEN
 //	udp4       0      0  10.4.0.5.5353          *.*
-func parseNetstatText(em *Emitter, bag map[string]string, ts string) int {
+func parseNetstatText(em *core.Emitter, bag map[string]string, ts string) int {
 	body := pickFirst(bag, "netstat_-an", "netstat_an")
 	if body == "" {
 		return 0
@@ -268,7 +270,7 @@ func parseNetstatText(em *Emitter, bag map[string]string, ts string) int {
 //	mDNSRespo   229            _mdnsresponder    7u  IPv4  0xabcd      0t0  UDP *:5353
 //	sshd      1234                   root    3u  IPv4  0xefgh      0t0  TCP 10.4.0.5:22 (LISTEN)
 //	sshd      1234                   root    4u  IPv4  0xfff0      0t0  TCP 10.4.0.5:22->10.4.0.10:51022 (ESTABLISHED)
-func parseLsofINetText(em *Emitter, bag map[string]string, ts string) int {
+func parseLsofINetText(em *core.Emitter, bag map[string]string, ts string) int {
 	body := pickFirst(bag, "lsof_-i", "lsof_i", "lsof")
 	if body == "" {
 		return 0
@@ -391,7 +393,7 @@ func splitAddr(s string) (string, string) {
 // Firewall - alf_global / alf_listapps / pfctl.
 // ---------------------------------------------------------------------------
 
-func processMacFirewall(em *Emitter, dirPath, ts string) int {
+func processMacFirewall(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "firewall.json")
 	if !ok {
 		return 0
@@ -466,7 +468,7 @@ func processMacFirewall(em *Emitter, dirPath, ts string) int {
 // BTM (Background Task Management) - parse `sfltool dumpbtm` output.
 // ---------------------------------------------------------------------------
 
-func processMacBTM(em *Emitter, dirPath, ts string) int {
+func processMacBTM(em *core.Emitter, dirPath, ts string) int {
 	p := filepath.Join(dirPath, "live", "sfltool_dumpbtm.txt")
 	data, err := os.ReadFile(p)
 	if err != nil {
@@ -576,7 +578,7 @@ func parseBTMRecord(block string) map[string]string {
 //	PID	Status	Label
 //	-	0	com.apple.SharedFilelistd
 //	123	0	com.apple.tendril.agent
-func processMacLaunchctl(em *Emitter, dirPath, ts string) int {
+func processMacLaunchctl(em *core.Emitter, dirPath, ts string) int {
 	p := filepath.Join(dirPath, "live", "launchctl_list.txt")
 	data, err := os.ReadFile(p)
 	if err != nil {
@@ -639,7 +641,7 @@ func processMacLaunchctl(em *Emitter, dirPath, ts string) int {
 // Launch agents/daemons - emit one startup_item per .plist file (mtime + ts).
 // ---------------------------------------------------------------------------
 
-func processMacLaunchPlists(em *Emitter, artifactDir, ts string) int {
+func processMacLaunchPlists(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "launch")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -676,7 +678,7 @@ func processMacLaunchPlists(em *Emitter, artifactDir, ts string) int {
 		}
 
 		label := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 
 		msg := fmt.Sprintf("LaunchAgent/Daemon plist: %s [%s]", label, scope)
 		attrs := map[string]interface{}{
@@ -699,7 +701,7 @@ func processMacLaunchPlists(em *Emitter, artifactDir, ts string) int {
 		// timeline at the moment of acquisition regardless of mtime.
 		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - LaunchAgents/Daemons",
-			"darwin:launchd:plist", copyAttrs(attrs)) {
+			"darwin:launchd:plist", core.CopyAttrs(attrs)) {
 			added++
 		}
 		return nil
@@ -711,7 +713,7 @@ func processMacLaunchPlists(em *Emitter, artifactDir, ts string) int {
 // Persistence tree - one event per file under artifacts/persistence.
 // ---------------------------------------------------------------------------
 
-func processMacPersistenceTree(em *Emitter, artifactDir, ts string) int {
+func processMacPersistenceTree(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "persistence")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -738,7 +740,7 @@ func processMacPersistenceTree(em *Emitter, artifactDir, ts string) int {
 			}
 		}
 
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 		category := "persistence"
 		switch {
 		case strings.Contains(rel, "Extensions") || strings.Contains(rel, "SystemExtensions"):
@@ -771,7 +773,7 @@ func processMacPersistenceTree(em *Emitter, artifactDir, ts string) int {
 		}
 		if em.AddEvent(ts, "Collection Time (Persistence Configured)", msg, "startup_item",
 			"RR-MacOS", "ResponseRay macOS Collector - Persistence",
-			"darwin:persistence:file", copyAttrs(attrs)) {
+			"darwin:persistence:file", core.CopyAttrs(attrs)) {
 			added++
 		}
 		return nil
@@ -783,7 +785,7 @@ func processMacPersistenceTree(em *Emitter, artifactDir, ts string) int {
 // Applications - one installed_program per Info.plist + parse install_history.
 // ---------------------------------------------------------------------------
 
-func processMacApplications(em *Emitter, artifactDir, dirPath, ts string) int {
+func processMacApplications(em *core.Emitter, artifactDir, dirPath, ts string) int {
 	added := 0
 
 	// 1) Walk the plist tree -- give each Info.plist an installed_program event.
@@ -815,7 +817,7 @@ func processMacApplications(em *Emitter, artifactDir, dirPath, ts string) int {
 				appName = strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 			}
 
-			mtime := FileMtimeISO(info.ModTime())
+			mtime := core.FileMtimeISO(info.ModTime())
 			msg := "Installed Application: " + appName
 			attrs := map[string]interface{}{
 				"program_name":  appName,
@@ -879,7 +881,7 @@ func processMacApplications(em *Emitter, artifactDir, dirPath, ts string) int {
 // "Install Date" uses the device's locale, so we accept m/d/yy[yy], h:mm a.
 var reInstallDate = regexp.MustCompile(`^(\d{1,2})/(\d{1,2})/(\d{2,4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)?`)
 
-func parseInstallHistory(em *Emitter, body, fallbackTS string) int {
+func parseInstallHistory(em *core.Emitter, body, fallbackTS string) int {
 	added := 0
 	scanner := bufio.NewScanner(strings.NewReader(body))
 	scanner.Buffer(make([]byte, 1024*1024), 4*1024*1024)
@@ -979,7 +981,7 @@ func parseInstallDate(s string) string {
 // Users - parse the dscacheutil_users text dump.
 // ---------------------------------------------------------------------------
 
-func processMacUsers(em *Emitter, dirPath, ts string) int {
+func processMacUsers(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "users.json")
 	if !ok {
 		return 0
@@ -1048,7 +1050,7 @@ func processMacUsers(em *Emitter, dirPath, ts string) int {
 // Shell history - emit one event per line under artifacts/shell_history.
 // ---------------------------------------------------------------------------
 
-func processMacShellHistory(em *Emitter, artifactDir, ts string) int {
+func processMacShellHistory(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "shell_history")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1075,7 +1077,7 @@ func processMacShellHistory(em *Emitter, artifactDir, ts string) int {
 		if len(parts) >= 2 {
 			user = parts[0]
 		}
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 		base := filepath.Base(path)
 
 		scanner := bufio.NewScanner(f)
@@ -1093,7 +1095,7 @@ func processMacShellHistory(em *Emitter, artifactDir, ts string) int {
 					if colon := strings.Index(meta, ":"); colon > 0 {
 						epoch := strings.TrimSpace(meta[:colon])
 						if e, err := strconv.ParseInt(epoch, 10, 64); err == nil && e > 0 {
-							cmdTS = EpochToISO(e)
+							cmdTS = core.EpochToISO(e)
 						}
 					}
 					cmd = cmd[semi+1:]
@@ -1130,7 +1132,7 @@ func processMacShellHistory(em *Emitter, artifactDir, ts string) int {
 // SSH - authorized_keys / known_hosts / config files.
 // ---------------------------------------------------------------------------
 
-func processMacSSH(em *Emitter, artifactDir, ts string) int {
+func processMacSSH(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "ssh")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1151,7 +1153,7 @@ func processMacSSH(em *Emitter, artifactDir, ts string) int {
 		if len(parts) >= 3 && parts[0] == "users" {
 			user = parts[1]
 		}
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 
 		f, ferr := os.Open(path)
 		if ferr != nil {
@@ -1243,7 +1245,7 @@ func processMacSSH(em *Emitter, artifactDir, ts string) int {
 // Quarantine - emit one event per file under artifacts/quarantine.
 // ---------------------------------------------------------------------------
 
-func processMacQuarantine(em *Emitter, artifactDir, ts string) int {
+func processMacQuarantine(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "quarantine")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1258,7 +1260,7 @@ func processMacQuarantine(em *Emitter, artifactDir, ts string) int {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 		msg := fmt.Sprintf("Quarantine artifact captured: %s", rel)
 		if em.AddEvent(mtime, "Quarantine Database Modified", msg, "quarantine_event",
 			"RR-MacOS", "ResponseRay macOS Collector - Quarantine",
@@ -1278,7 +1280,7 @@ func processMacQuarantine(em *Emitter, artifactDir, ts string) int {
 // Recent items - emit one event per file under artifacts/recent_items.
 // ---------------------------------------------------------------------------
 
-func processMacRecentItems(em *Emitter, artifactDir, ts string) int {
+func processMacRecentItems(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "recent_items")
 	if _, err := os.Stat(root); err != nil {
 		return 0
@@ -1298,7 +1300,7 @@ func processMacRecentItems(em *Emitter, artifactDir, ts string) int {
 		if len(parts) >= 3 && parts[0] == "users" {
 			user = parts[1]
 		}
-		mtime := FileMtimeISO(info.ModTime())
+		mtime := core.FileMtimeISO(info.ModTime())
 		msg := fmt.Sprintf("Recent items file: %s", filepath.Base(rel))
 		if user != "" {
 			msg += " (user: " + user + ")"
@@ -1323,7 +1325,7 @@ func processMacRecentItems(em *Emitter, artifactDir, ts string) int {
 // System info - SIP, Gatekeeper, FileVault, OS version, kernel.
 // ---------------------------------------------------------------------------
 
-func processMacSystemInfo(em *Emitter, dirPath, ts string) int {
+func processMacSystemInfo(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "system_info.json")
 	if !ok {
 		return 0
@@ -1361,7 +1363,7 @@ func processMacSystemInfo(em *Emitter, dirPath, ts string) int {
 // Time Machine.
 // ---------------------------------------------------------------------------
 
-func processMacTimeMachine(em *Emitter, dirPath, ts string) int {
+func processMacTimeMachine(em *core.Emitter, dirPath, ts string) int {
 	bag, ok := macLiveBag(dirPath, "timemachine.json")
 	if !ok {
 		return 0

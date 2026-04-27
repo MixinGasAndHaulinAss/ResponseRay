@@ -1,4 +1,4 @@
-package collectoringest
+package core
 
 import (
 	"regexp"
