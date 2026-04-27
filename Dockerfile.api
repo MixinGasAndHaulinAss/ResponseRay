@@ -56,12 +56,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-# Note: examples/unifiedlog_iterator is its own crate (not a workspace member of
-# the root macos-unifiedlogs library), so its target dir is local.
+# Pin target dir explicitly so we know exactly where cargo will drop the binary.
 RUN git clone --depth 1 https://github.com/mandiant/macos-UnifiedLogs.git \
     && cd macos-UnifiedLogs/examples/unifiedlog_iterator \
-    && cargo build --release \
-    && cp target/release/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator \
+    && CARGO_TARGET_DIR=/tmp/uli-target cargo build --release \
+    && echo "--- post-build target tree ---" \
+    && find /tmp/uli-target/release -maxdepth 2 -type f -executable -printf '%p %s\n' | head -50 \
+    && echo "--- searching anywhere for unifiedlog_iterator ---" \
+    && find /tmp/uli-target / -name 'unifiedlog_iterator' -type f -executable 2>/dev/null | head -20 \
+    && BIN="$(find /tmp/uli-target -type f -executable -name 'unifiedlog_iterator' | head -1)" \
+    && test -n "$BIN" && cp "$BIN" /usr/local/bin/unifiedlog_iterator \
     && (strip /usr/local/bin/unifiedlog_iterator || true) \
     && ls -l /usr/local/bin/unifiedlog_iterator
 
