@@ -56,17 +56,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-# Pin target dir explicitly so we know exactly where cargo will drop the binary.
+# Pin CARGO_TARGET_DIR so the binary lands in a known location regardless of
+# whether cargo decides to walk up to the parent crate's manifest.
 RUN git clone --depth 1 https://github.com/mandiant/macos-UnifiedLogs.git \
     && cd macos-UnifiedLogs/examples/unifiedlog_iterator \
     && CARGO_TARGET_DIR=/tmp/uli-target cargo build --release \
-    && echo "--- post-build target tree ---" \
-    && find /tmp/uli-target/release -maxdepth 2 -type f -executable -printf '%p %s\n' | head -50 \
-    && echo "--- searching anywhere for unifiedlog_iterator ---" \
-    && find /tmp/uli-target / -name 'unifiedlog_iterator' -type f -executable 2>/dev/null | head -20 \
-    && BIN="$(find /tmp/uli-target -type f -executable -name 'unifiedlog_iterator' | head -1)" \
-    && test -n "$BIN" && cp "$BIN" /usr/local/bin/unifiedlog_iterator \
+    && cp /tmp/uli-target/release/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator \
     && (strip /usr/local/bin/unifiedlog_iterator || true) \
+    && /usr/local/bin/unifiedlog_iterator --help >/dev/null \
     && ls -l /usr/local/bin/unifiedlog_iterator
 
 # ----------------------------------------------------------------------

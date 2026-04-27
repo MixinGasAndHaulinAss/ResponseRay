@@ -46,32 +46,95 @@ func processMacUnifiedLogs(em *core.Emitter, artifactDir, ts string) int {
 // final image at /usr/local/bin/unifiedlog_iterator. Returns (events, true)
 // on success, (0, false) if the binary is missing or fails so callers can
 // fall back to the ndjson snapshot.
+//
+// The Rust CLI requires `--mode <log-archive|single-file|live> --input <path>
+// --output <file>` and does not stream on stdout, so we point it at a temp
+// file, then read it back and delete it.
 func runUnifiedLogIterator(em *core.Emitter, archiveRoot, ts string) (int, bool) {
 	binary := "/usr/local/bin/unifiedlog_iterator"
 	if _, err := os.Stat(binary); err != nil {
 		return 0, false
 	}
-	// Newer versions of the iterator accept --input <archive_dir> --output -
-	// streaming JSONL on stdout. The archive_dir is expected to contain the
-	// `Persist`, `Special`, `Signpost`, `HighVolume`, `timesync` subdirs that
-	// `/var/db/diagnostics` uses.
+
+	mode, target, ok := pickUnifiedLogMode(archiveRoot)
+	if !ok {
+		return 0, false
+	}
+
+	out, err := os.CreateTemp("", "rr-unifiedlog-*.jsonl")
+	if err != nil {
+		return 0, false
+	}
+	outPath := out.Name()
+	out.Close()
+	defer os.Remove(outPath)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, binary,
-		"--input", archiveRoot,
-		"--format", "jsonl")
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return 0, false
-	}
+		"--mode", mode,
+		"--input", target,
+		"--format", "jsonl",
+		"--output", outPath)
 	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
+	if err := cmd.Run(); err != nil {
 		return 0, false
 	}
-	defer cmd.Wait()
 
-	scanner := bufio.NewScanner(stdout)
+	added := parseUnifiedLogJSONLFile(em, outPath, ts)
+	return added, true
+}
+
+// pickUnifiedLogMode inspects archiveRoot and decides which CLI mode to use:
+//   - log-archive: directory contains Info.plist + Persist/ (a .logarchive)
+//   - single-file: a single .tracev3 file (less common from our collector)
+//
+// Returns (mode, target_path, ok). target_path is what we pass to --input.
+func pickUnifiedLogMode(archiveRoot string) (string, string, bool) {
+	st, err := os.Stat(archiveRoot)
+	if err != nil {
+		return "", "", false
+	}
+	if st.IsDir() {
+		if _, err := os.Stat(filepath.Join(archiveRoot, "Info.plist")); err == nil {
+			return "log-archive", archiveRoot, true
+		}
+		// Search one level deep for a .logarchive child.
+		entries, _ := os.ReadDir(archiveRoot)
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			child := filepath.Join(archiveRoot, e.Name())
+			if _, err := os.Stat(filepath.Join(child, "Info.plist")); err == nil {
+				return "log-archive", child, true
+			}
+		}
+		// Maybe we have a directory of bare .tracev3 files - take the first.
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".tracev3") {
+				return "single-file", filepath.Join(archiveRoot, e.Name()), true
+			}
+		}
+		return "", "", false
+	}
+	if strings.HasSuffix(archiveRoot, ".tracev3") {
+		return "single-file", archiveRoot, true
+	}
+	return "", "", false
+}
+
+// parseUnifiedLogJSONLFile reads the JSONL output from unifiedlog_iterator and
+// emits events. Reused by runUnifiedLogIterator; behaves identically to the
+// inline scan it replaced.
+func parseUnifiedLogJSONLFile(em *core.Emitter, path, defaultTS string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 64*1024*1024)
 	added := 0
 	for scanner.Scan() {
@@ -83,10 +146,9 @@ func runUnifiedLogIterator(em *core.Emitter, archiveRoot, ts string) (int, bool)
 		if err := json.Unmarshal([]byte(line), &rec); err != nil {
 			continue
 		}
-		added += emitUnifiedLogRow(em, rec, ts)
+		added += emitUnifiedLogRow(em, rec, defaultTS)
 	}
-	_ = ts
-	return added, true
+	return added
 }
 
 // parseUnifiedLogNDJSON reads the ndjson file produced by `log show
