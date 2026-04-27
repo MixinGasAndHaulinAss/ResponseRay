@@ -57,11 +57,12 @@ RUN apt-get update \
 
 WORKDIR /src
 RUN git clone --depth 1 https://github.com/mandiant/macos-UnifiedLogs.git \
-    && cd macos-UnifiedLogs/examples/unifiedlog_iterator \
-    && cargo build --release \
-    && cp ../../target/release/unifiedlog_iterator /usr/local/bin/unifiedlog_iterator \
+    && cd macos-UnifiedLogs \
+    && CARGO_TARGET_DIR=/tmp/unifiedlog-target \
+       cargo build --release -p unifiedlog_iterator \
+    && BIN="$(find /tmp/unifiedlog-target/release -maxdepth 2 -type f -name unifiedlog_iterator -executable | head -1)" \
+    && test -n "$BIN" && cp "$BIN" /usr/local/bin/unifiedlog_iterator \
     && (strip /usr/local/bin/unifiedlog_iterator || true) \
-    && /usr/local/bin/unifiedlog_iterator --help >/dev/null 2>&1 || true \
     && ls -l /usr/local/bin/unifiedlog_iterator
 
 # ----------------------------------------------------------------------
