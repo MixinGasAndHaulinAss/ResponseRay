@@ -178,3 +178,49 @@ func (h *SiteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// Platforms returns which platforms have uploads for this site
+func (h *SiteHandler) Platforms(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "siteID"))
+	if err != nil {
+		http.Error(w, "invalid site ID", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := h.DB.Query(r.Context(), `
+		SELECT 
+			COALESCE(u.platform, 'unknown') as platform,
+			COUNT(DISTINCT u.id) as upload_count,
+			COALESCE(SUM(u.event_count), 0) as event_count
+		FROM uploads u
+		WHERE u.site_id = $1 AND u.status = 'complete'
+		GROUP BY u.platform
+		ORDER BY event_count DESC
+	`, id)
+	if err != nil {
+		httpError(w, err)
+		return
+	}
+	defer rows.Close()
+
+	type platformInfo struct {
+		Platform    string `json:"platform"`
+		UploadCount int64  `json:"upload_count"`
+		EventCount  int64  `json:"event_count"`
+	}
+
+	var platforms []platformInfo
+	for rows.Next() {
+		var p platformInfo
+		if err := rows.Scan(&p.Platform, &p.UploadCount, &p.EventCount); err != nil {
+			httpError(w, err)
+			return
+		}
+		platforms = append(platforms, p)
+	}
+	if platforms == nil {
+		platforms = []platformInfo{}
+	}
+
+	writeJSON(w, platforms)
+}

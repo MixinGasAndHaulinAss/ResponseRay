@@ -72,6 +72,13 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 
+	if version < 4 {
+		log.Println("Applying migration 004_uploads_platform.sql")
+		if _, err := pool.Exec(ctx, Migration004); err != nil {
+			return fmt.Errorf("apply migration 004: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -169,6 +176,13 @@ CREATE INDEX IF NOT EXISTS idx_ra_results_upload ON remote_access_results(upload
 CREATE INDEX IF NOT EXISTS idx_ra_results_site ON remote_access_results(site_id);
 
 INSERT INTO schema_version (version) VALUES (3) ON CONFLICT DO NOTHING;
+`
+
+const Migration004 = `
+ALTER TABLE uploads ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'unknown';
+CREATE INDEX IF NOT EXISTS idx_uploads_platform ON uploads(site_id, platform);
+
+INSERT INTO schema_version (version) VALUES (4) ON CONFLICT DO NOTHING;
 `
 
 func envOr(key, fallback string) string {

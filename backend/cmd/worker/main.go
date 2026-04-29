@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/responseray/responseray/internal/collectoringest"
+	"github.com/responseray/responseray/internal/collectoringest/core"
 	"github.com/responseray/responseray/internal/db"
 	"github.com/responseray/responseray/internal/handlers"
 	"github.com/responseray/responseray/internal/ingest"
@@ -241,12 +242,30 @@ func processUpload(ctx context.Context, pool *pgxpool.Pool, rc *redis.Client, in
 		}
 	}
 
+	// Detect platform from the extracted archive
+	platform := "unknown"
+	if isCollectorArchive {
+		extractDir := filepath.Join(uploadDir, uploadID.String(), "extracted")
+		manifestDir := findManifestDir(extractDir)
+		if manifestDir != "" {
+			if m, err := core.ParseManifest(manifestDir); err == nil {
+				platform = strings.ToLower(strings.TrimSpace(m.Platform))
+				if platform == "" {
+					platform = "unknown"
+				}
+			}
+		}
+	} else {
+		// Legacy CyberTriage uploads are Windows
+		platform = "windows"
+	}
+
 	_, err = pool.Exec(ctx,
-		`UPDATE uploads SET status = 'complete', event_count = $2, host_name = $3, updated_at = NOW() WHERE id = $1`,
-		uploadID, count, hostName)
+		`UPDATE uploads SET status = 'complete', event_count = $2, host_name = $3, platform = $4, updated_at = NOW() WHERE id = $1`,
+		uploadID, count, hostName, platform)
 
 	rdb.ClearProgress(ctx, rc, uploadID)
-	log.Printf("Upload %s complete", uploadID)
+	log.Printf("Upload %s complete (platform: %s)", uploadID, platform)
 	return err
 }
 

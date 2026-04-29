@@ -168,6 +168,9 @@ export const api = {
   deleteApiKey: (keyId: string) =>
     request<void>(`/keys/${keyId}`, { method: 'DELETE' }),
 
+  // Platforms
+  getPlatforms: (siteId: string) => request<PlatformInfo[]>(`/sites/${siteId}/platforms`),
+
   // Collectors
   listCollectors: () => request<CollectorInfo[]>('/collectors/'),
   downloadCollector: async (platform: string): Promise<void> => {
@@ -328,4 +331,10 @@ export interface CollectorInfo {
   sha256?: string
   modified_at?: string
   error?: string
+}
+
+export interface PlatformInfo {
+  platform: string
+  upload_count: number
+  event_count: number
 }

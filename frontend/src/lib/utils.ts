@@ -48,10 +48,43 @@ export function timeAgo(dt: string): string {
 }
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {
-  account_created: 'Accounts',
+  // Cross-platform event types (work for Windows, macOS, Linux, ESXi)
+  running_process: 'Running Processes',
+  active_connection: 'Network Connections',
+  shell_command: 'Shell History',
+  ssh_authorized_key: 'SSH Authorized Keys',
+  ssh_known_host: 'SSH Known Hosts',
+  account_created: 'User Accounts',
+  installed_program: 'Installed Programs',
+  os_config: 'OS Configuration',
+  firewall_rule: 'Firewall Rules',
+  startup_item: 'Startup Items',
+  file_access: 'File Access',
+
+  // macOS-specific event types
+  file_downloaded: 'Downloaded Files',
+  tcc_grant: 'TCC Permissions',
+  application_usage: 'Application Usage',
+  application_focus: 'App Focus',
+  app_intent: 'App Intent',
+  app_activity: 'App Activity',
+  web_usage: 'Web Usage',
+  device_locked: 'Device Locked',
+  device_unlocked: 'Device Unlocked',
+  display_on: 'Display On',
+  display_off: 'Display Off',
+  battery_level: 'Battery Level',
+  device_topic: 'Device Topic',
+  os_log: 'Unified Log',
+  web_history: 'Web History',
+  web_download: 'Web Download',
+  web_cookie: 'Web Cookie',
+  web_login: 'Web Login',
+  form_history: 'Form History',
+
+  // Windows-specific event types
   browser_history: 'Browser History',
   dhcp_event: 'DHCP',
-  file_access: 'File Access',
   file_deleted: 'Deleted Files',
   file_timeline: 'File Timeline (SI)',
   file_timeline_fn: 'File Timeline (FN)',
@@ -74,7 +107,6 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   session_logon: 'Session Processes',
   srum_app_usage: 'SRUM App Usage',
   srum_network_connectivity: 'SRUM Network',
-  startup_item: 'Startup Items',
   windows_authentication: 'Authentication',
   windows_defender: 'Windows Defender',
   windows_dns: 'DNS',
@@ -87,6 +119,15 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   windows_smb: 'SMB',
   windows_task: 'Scheduled Tasks',
   wmi_persistence: 'WMI Persistence',
+
+  // Linux-specific event types (for future)
+  journal_entry: 'Journal Entry',
+  auth_log: 'Auth Log',
+  syslog_entry: 'Syslog',
+
+  // ESXi-specific event types (for future)
+  esxi_vm_event: 'VM Event',
+  esxi_host_event: 'Host Event',
 }
 
 export const FINDING_COLORS: Record<string, string> = {

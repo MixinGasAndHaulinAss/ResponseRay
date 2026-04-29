@@ -106,6 +106,7 @@ func main() {
 			r.Put("/", siteH.Update)
 			r.Delete("/", siteH.Delete)
 
+			r.Get("/platforms", siteH.Platforms)
 			r.Get("/dashboard", dashH.Stats)
 
 			r.Get("/uploads", uploadH.List)
