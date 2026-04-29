@@ -88,6 +88,7 @@ func runUnifiedLogIterator(em *core.Emitter, archiveRoot, ts string) (int, bool)
 
 // pickUnifiedLogMode inspects archiveRoot and decides which CLI mode to use:
 //   - log-archive: directory contains Info.plist + Persist/ (a .logarchive)
+//     OR has the raw /var/db/diagnostics structure (Persist/, Special/, etc.)
 //   - single-file: a single .tracev3 file (less common from our collector)
 //
 // Returns (mode, target_path, ok). target_path is what we pass to --input.
@@ -97,10 +98,18 @@ func pickUnifiedLogMode(archiveRoot string) (string, string, bool) {
 		return "", "", false
 	}
 	if st.IsDir() {
+		// Check for a proper .logarchive bundle (has Info.plist).
 		if _, err := os.Stat(filepath.Join(archiveRoot, "Info.plist")); err == nil {
 			return "log-archive", archiveRoot, true
 		}
-		// Search one level deep for a .logarchive child.
+
+		// Check for raw /var/db/diagnostics copy (has Persist/ or Special/ with .tracev3).
+		// The unifiedlog_iterator tool can parse this structure even without Info.plist.
+		if looksLikeDiagnosticsDir(archiveRoot) {
+			return "log-archive", archiveRoot, true
+		}
+
+		// Search one level deep for a .logarchive child or diagnostics child.
 		entries, _ := os.ReadDir(archiveRoot)
 		for _, e := range entries {
 			if !e.IsDir() {
@@ -110,7 +119,17 @@ func pickUnifiedLogMode(archiveRoot string) (string, string, bool) {
 			if _, err := os.Stat(filepath.Join(child, "Info.plist")); err == nil {
 				return "log-archive", child, true
 			}
+			if looksLikeDiagnosticsDir(child) {
+				return "log-archive", child, true
+			}
 		}
+
+		// Search deeper: artifacts/unified_logs/var/db/diagnostics structure.
+		diagPath := filepath.Join(archiveRoot, "var", "db", "diagnostics")
+		if looksLikeDiagnosticsDir(diagPath) {
+			return "log-archive", diagPath, true
+		}
+
 		// Maybe we have a directory of bare .tracev3 files - take the first.
 		for _, e := range entries {
 			if !e.IsDir() && strings.HasSuffix(e.Name(), ".tracev3") {
@@ -123,6 +142,24 @@ func pickUnifiedLogMode(archiveRoot string) (string, string, bool) {
 		return "single-file", archiveRoot, true
 	}
 	return "", "", false
+}
+
+// looksLikeDiagnosticsDir returns true if the directory looks like a raw copy
+// of /var/db/diagnostics (has Persist/, Special/, or Signpost/ with .tracev3 files).
+func looksLikeDiagnosticsDir(dir string) bool {
+	for _, subdir := range []string{"Persist", "Special", "Signpost", "HighVolume"} {
+		sub := filepath.Join(dir, subdir)
+		entries, err := os.ReadDir(sub)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".tracev3") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parseUnifiedLogJSONLFile reads the JSONL output from unifiedlog_iterator and

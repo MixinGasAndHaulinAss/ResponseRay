@@ -28,7 +28,8 @@ func processMacQuarantineDB(em *core.Emitter, artifactDir, ts string) int {
 			return nil
 		}
 		base := filepath.Base(path)
-		if !strings.HasPrefix(base, "QuarantineEventsV2") {
+		// File is named "com.apple.LaunchServices.QuarantineEventsV2" — check Contains not HasPrefix
+		if !strings.Contains(base, "QuarantineEventsV2") {
 			return nil
 		}
 		if strings.HasSuffix(base, "-wal") || strings.HasSuffix(base, "-shm") || strings.HasSuffix(base, "-journal") {
