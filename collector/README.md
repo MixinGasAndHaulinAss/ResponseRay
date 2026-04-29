@@ -2,7 +2,7 @@
 
 A standalone Windows forensic artifact collector that captures a comprehensive set of DFIR artifacts from a live system. Produces a structured ZIP archive ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.26.3`
+**Current version:** `2026.4.29.1`
 
 ## Key Design Principles
 
@@ -260,7 +260,7 @@ The output is a single executable at `collector/publish/ResponseRayCollector.exe
 The version is set in `ResponseRayCollector.csproj` using CalVer format (`Year.Month.Day.Revision`):
 
 ```xml
-<Version>2026.4.26.3</Version>
+<Version>2026.4.29.1</Version>
 ```
 
 ## Upload to ResponseRay
