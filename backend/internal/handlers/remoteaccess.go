@@ -134,7 +134,14 @@ func DetectRemoteAccess(ctx context.Context, pool *pgxpool.Pool, siteID, uploadI
 }
 
 // StoreRemoteAccessResults writes detection results into remote_access_results.
+// It first deletes any existing results for this upload to prevent duplicates
+// when an upload is re-processed.
 func StoreRemoteAccessResults(ctx context.Context, pool *pgxpool.Pool, siteID, uploadID uuid.UUID, results []RemoteAccessTool) error {
+	// Clear existing results for this upload to prevent duplicates on re-processing
+	if _, err := pool.Exec(ctx, `DELETE FROM remote_access_results WHERE upload_id = $1`, uploadID); err != nil {
+		return fmt.Errorf("clear existing remote access results: %w", err)
+	}
+
 	for _, r := range results {
 		var firstSeen, lastSeen *time.Time
 		if r.FirstSeen != nil {
