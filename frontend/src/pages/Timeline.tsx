@@ -11,6 +11,7 @@ import DataTable from '../components/tables/DataTable'
 import FindingBadge from '../components/findings/FindingBadge'
 import FindingDialog from '../components/findings/FindingDialog'
 import EventDetailPanel from '../components/EventDetailPanel'
+import PlatformBadge, { detectPlatformFromSource } from '../components/PlatformBadge'
 import { formatDateTime, EVENT_TYPE_LABELS, cn } from '../lib/utils'
 
 export default function Timeline() {
@@ -102,6 +103,13 @@ export default function Timeline() {
           small
         />
       ),
+    },
+    {
+      id: 'platform', header: '', size: 30,
+      cell: ({ row }: any) => {
+        const platform = row.original.platform || detectPlatformFromSource(row.original.source_short)
+        return <PlatformBadge platform={platform} />
+      },
     },
     {
       id: 'datetime', header: 'Timestamp',
