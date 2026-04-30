@@ -41,6 +41,13 @@ func Process(em *core.Emitter, dirPath, ts string) int {
 	total += processLinuxPersistence(em, artifactDir, ts)
 	total += processLinuxSSH(em, artifactDir, ts)
 	total += processLinuxShellHistory(em, artifactDir, ts)
+	// New parsers
+	total += processLinuxBrowsers(em, artifactDir, ts)
+	total += processLinuxDocker(em, dirPath, ts)
+	total += processLinuxMounts(em, dirPath, ts)
+	total += processLinuxKernelModules(em, dirPath, ts)
+	total += processLinuxSecurity(em, dirPath, ts)
+	total += processLinuxMAC(em, dirPath, ts)
 	log.Printf("collectoringest/linux: parsers added %d events", total)
 	return total
 }

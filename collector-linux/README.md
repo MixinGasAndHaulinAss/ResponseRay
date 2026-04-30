@@ -2,7 +2,7 @@
 
 A standalone Linux forensic artifact collector. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows collector, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.29.2`
+**Current version:** `2026.4.30.1`
 
 ## Key Design Principles
 
@@ -27,7 +27,7 @@ sudo ./responseray-collector-linux
 The collector will:
 
 1. Verify it is running as root
-2. Run all 24 collectors in sequence
+2. Run all 27 collectors in sequence
 3. Package everything into `<host>_<timestamp>.tar.gz` in the current directory
 4. Clean up its temp directory
 
@@ -85,6 +85,10 @@ sudo ./responseray-collector-linux --include-memory --output /mnt/usb
 | `Auditd` | `/etc/audit/audit.rules`, `/etc/audit/rules.d/*`, `auditctl -s`, `/var/log/audit/audit.log*`, `ausearch` summaries |
 | `FileSystem` | NDJSON timeline of high-value directories (etc, bin, sbin, var/log, home, root, tmp, opt, usr/local/bin, usr/local/sbin) with full MACB |
 | `MemoryArtifacts` | `/proc/kcore`, `swap` files, hibernation files (only with `--include-memory`) |
+| `PkgHistory` | APT sources.list, sources.list.d, APT history logs, YUM repos, DNF config, package manager history |
+| `Security` | SUID/SGID binaries, world-writable files, shared memory (ipcs), ulimit, lock files, mail spool, Sysmon for Linux |
+| `MailLogs` | Mail server logs (postfix, sendmail, exim), `/var/log/mail*`, `/etc/postfix/` |
+| `DHCP` | DHCP server logs and configuration, dnsmasq config |
 
 ## Output Format
 

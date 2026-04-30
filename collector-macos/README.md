@@ -2,7 +2,7 @@
 
 A standalone macOS forensic artifact collector. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows and Linux collectors, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.29.2`
+**Current version:** `2026.4.30.1`
 
 ## Key Design Principles
 
@@ -109,7 +109,7 @@ Same schema as the Windows and Linux collectors. The `manifest.json` includes a 
 
 ## Server-side raw artifact parsing
 
-As of `2026.4.29.2`, the ResponseRay backend parses macOS raw artifacts in-process (rather than just hashing/preserving them on the timeline). The native parser lives at `backend/internal/collectoringest/macos/` and runs automatically when an upload's manifest declares `"platform": "macos"`.
+As of `2026.4.30.1`, the ResponseRay backend parses macOS raw artifacts in-process (rather than just hashing/preserving them on the timeline). The native parser lives at `backend/internal/collectoringest/macos/` and runs automatically when an upload's manifest declares `"platform": "macos"`.
 
 | Captured artifact | Parser | Event types emitted |
 |-------------------|--------|---------------------|

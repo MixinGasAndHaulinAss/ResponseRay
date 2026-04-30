@@ -27,6 +27,7 @@ type Result struct {
 var All = []Collector{
 	&SystemInfoCollector{},
 	&PackageCollector{},
+	&PkgHistoryCollector{},
 	&AuthLogCollector{},
 	&SystemLogCollector{},
 	&ShellHistoryCollector{},
@@ -49,4 +50,7 @@ var All = []Collector{
 	&AuditdCollector{},
 	&FileSystemCollector{},
 	&MemoryCollector{},
+	&SecurityCollector{},
+	&MailLogCollector{},
+	&DHCPCollector{},
 }

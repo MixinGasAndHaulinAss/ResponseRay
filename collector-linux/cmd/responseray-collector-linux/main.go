@@ -21,7 +21,7 @@ import (
 	"github.com/responseray/collector-linux/internal/manifest"
 )
 
-const Version = "2026.4.29.2"
+const Version = "2026.4.30.1"
 
 func main() {
 	output := flag.String("output", ".", "Directory to write the resulting tar.gz archive into")

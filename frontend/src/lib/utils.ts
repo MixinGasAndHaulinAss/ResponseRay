@@ -120,14 +120,35 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   windows_task: 'Scheduled Tasks',
   wmi_persistence: 'WMI Persistence',
 
-  // Linux-specific event types (for future)
+  // Linux-specific event types
   journal_entry: 'Journal Entry',
   auth_log: 'Auth Log',
   syslog_entry: 'Syslog',
+  logon_success: 'Logon Success',
+  logon_failed: 'Logon Failed',
+  logon_session: 'Logon Session',
+  scheduled_task: 'Scheduled Tasks',
+  kernel_module: 'Kernel Modules',
+  suid_binary: 'SUID Binaries',
+  sgid_binary: 'SGID Binaries',
+  shared_memory: 'Shared Memory',
+  mount_entry: 'Mounts',
+  nfs_export: 'NFS Exports',
+  docker_container: 'Docker Containers',
+  docker_image: 'Docker Images',
+  docker_network: 'Docker Networks',
+  docker_volume: 'Docker Volumes',
+  apt_history: 'APT History',
+  yum_history: 'YUM History',
+  dnf_history: 'DNF History',
 
-  // ESXi-specific event types (for future)
+  // ESXi-specific event types
   esxi_vm_event: 'VM Event',
   esxi_host_event: 'Host Event',
+  esxi_process: 'ESXi Processes',
+  esxi_network: 'ESXi Network',
+  esxi_datastore: 'ESXi Datastores',
+  esxi_firewall: 'ESXi Firewall',
 }
 
 export const FINDING_COLORS: Record<string, string> = {

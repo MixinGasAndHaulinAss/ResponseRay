@@ -22,6 +22,7 @@ func (c *NetworkLiveCollector) Collect(ctx *fsutil.Context) Result {
 		"/etc/networks",
 		"/etc/services",
 		"/etc/host.conf",
+		"/etc/protocols",
 		"/proc/net/dev",
 		"/proc/net/route",
 		"/proc/net/route6",
@@ -30,9 +31,19 @@ func (c *NetworkLiveCollector) Collect(ctx *fsutil.Context) Result {
 		"/proc/net/tcp6",
 		"/proc/net/udp",
 		"/proc/net/udp6",
+		"/proc/net/udplite",
+		"/proc/net/udplite6",
+		"/proc/net/icmp",
+		"/proc/net/icmp6",
+		"/proc/net/raw",
+		"/proc/net/raw6",
 		"/proc/net/unix",
 		"/proc/net/sockstat",
+		"/proc/net/sockstat6",
 		"/proc/net/wireless",
+		"/proc/net/netstat",
+		"/proc/net/snmp",
+		"/proc/net/snmp6",
 	}
 	for _, f := range files {
 		if ctx.CaptureFile(f, "artifacts/network"+f, "network") {

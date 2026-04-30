@@ -14,7 +14,7 @@ A web-based Digital Forensics and Incident Response (DFIR) platform for investig
 
 The macOS path no longer truncates at the 7-day `log show` window: the `unifiedlog_iterator` Rust binary baked into the API image walks the full `/var/db/diagnostics` archive captured by the collector, so events going back as far as the host has retained `.tracev3` shards are emitted as `os_log` records.
 
-**Current version:** `2026.4.29.2`
+**Current version:** `2026.4.30.1`
 
 ## Architecture
 
@@ -416,7 +416,7 @@ The bundle path inside the container is `/usr/share/responseray/collectors/<plat
 
 ## Versioning
 
-CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.29.2`). The version is displayed on the login screen, home page, and dashboard.
+CalVer format: `Year.Month.Day.Revision` (e.g., `2026.4.30.1`). The version is displayed on the login screen, home page, and dashboard.
 
 ## License
 

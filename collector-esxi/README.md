@@ -2,7 +2,7 @@
 
 A POSIX shell script that captures forensic artifacts from a running VMware ESXi host. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows, Linux, and macOS collectors, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.29.2`
+**Current version:** `2026.4.30.1`
 
 ## Key Design Principles
 
