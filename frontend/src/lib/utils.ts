@@ -149,6 +149,22 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   esxi_network: 'ESXi Network',
   esxi_datastore: 'ESXi Datastores',
   esxi_firewall: 'ESXi Firewall',
+  esxi_environment: 'Environment Variables',
+  esxi_multipath: 'Multipathing',
+  esxi_multipath_path: 'Multipath Paths',
+  esxi_scsi: 'SCSI Adapters',
+  esxi_iscsi: 'iSCSI Adapters',
+  esxi_secpolicy: 'Security Policy',
+  esxi_vmknic: 'VMkernel NICs',
+  esxi_portgroup: 'Portgroups',
+  esxi_wbem: 'WBEM Config',
+  esxi_wbem_provider: 'WBEM Providers',
+  esxi_cpu: 'CPU Info',
+  esxi_pci: 'PCI Devices',
+  vm_inventory: 'VM Inventory',
+  vm_log: 'VM Logs',
+  account_permission: 'Permissions',
+  datastore: 'Datastores',
 }
 
 export const FINDING_COLORS: Record<string, string> = {

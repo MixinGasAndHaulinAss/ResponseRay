@@ -2,14 +2,14 @@
 
 A POSIX shell script that captures forensic artifacts from a running VMware ESXi host. Produces a `tar.gz` archive with the same `manifest.json` schema as the Windows, Linux, and macOS collectors, ready for upload to the [ResponseRay](https://github.com/NCLGISA/ResponseRay) platform.
 
-**Current version:** `2026.4.30.1`
+**Current version:** `2026.4.30.2`
 
 ## Key Design Principles
 
 - **Native shell only** — `/bin/sh` (BusyBox `ash`), no bash, no Python, no Go runtime needed. Drop the script on the host and run.
 - **In-OS capture** — uses `esxcli`, `vim-cmd`, `vmkfstools`, `vsish`, `esxtop`, and direct file copies. No raw disk imaging.
 - **VM metadata only** — captures `.vmx`, `.vmsd`, `.nvram`, `vmware*.log` (small descriptors and logs), but does NOT copy `.vmdk` payloads. To preserve VM disks, use vSphere snapshot or storage-level imaging separately.
-- **Comprehensive ESXi coverage** — 35+ evidence types across host config, hostd/vpxa logs, syslog, firewall, AD/SSO, vSAN, NSX/dvSwitch, secure-boot/TPM/keystore, VIB signatures, plus per-VM snapshot trees and vmkfstools per-volume stats.
+- **Comprehensive ESXi coverage** — 24 collector modules capturing all 35 Binalyze evidence types: Account Info, Active Connections, Advanced Configuration, Advanced Settings, CPU Info, CollectInfo, Datastores, Disk Usage, Environment Variables, Filesystem Info, Firewall Ruleset, Hardware Clock Time, IP Interface Info, Kernel Info, Module List, Multipathing Info, NIC List, Networks, Open Files, PCI Info, Permission Info, Processes, Routes, Routing Table Info, SCSI Info, Security Policy Domain, Syslog Config/Logger Info, System, User Info, VIB Info, VmkNicList, Vswitch Standard Info, WBEM Info.
 - **Optional memory** — `--include-memory` captures `/var/core/*` and `/vmkernel-zdump*` (off by default; large)
 
 ## Requirements
@@ -77,8 +77,15 @@ responseray-collector-esxi.sh [--output DIR] [--include-memory] [--skip name1,na
 | `Security` | Encryption / TPM / Keystore status (`esxcli system settings encryption get`, `esxcli hardware trustedboot get`, `esxcli system security keypersistence get`), machine certificate dump, `/etc/vmware/ssl/*`, vCenter cert chain |
 | `Config` | `/etc/vmware/esx.conf`, `hostd/config.xml`, `vpxa/vpxa.cfg`, `snmp.xml`, `inetd.conf`, `/etc/profile`, `/etc/rc.local.d/*`, `/bootbank/boot.cfg` |
 | `Persistence` | `/etc/init.d/*`, `/etc/cron.d/*`, `/var/spool/cron/crontabs/*`, `/etc/crontab`, `rc.local`, `local.sh`, `/etc/profile`, root shell init files |
-| `Hardware` | `esxcli hardware cpu/memory/pci/clock/platform`, `smbiosDump`, `lspci -p`, `esxcli hardware usb passthrough device list` |
+| `Hardware` | `esxcli hardware cpu/memory/pci/clock/platform`, `smbiosDump`, `lspci -p`, `esxcli hardware usb passthrough device list`, `esxcli hardware ipmi sel list` |
 | `Software` | `esxcli software vib list`, `esxcli software vib get` (all), `esxcli software profile get`, `esxcli software baseimage get/component list` |
+| `Environment` | `env`, `printenv` — captures all environment variables for the shell session |
+| `Multipathing` | `esxcli storage nmp device/path/satp/psp list`, `esxcli storage core plugin list` — multipath device configuration and path status |
+| `SCSI` | `esxcli storage vmfs extent list`, `esxcli storage san fc list`, `esxcli iscsi adapter list`, `esxcli storage core claimrule list`, `esxcli storage core device vaai status get` — SCSI/FC/iSCSI adapter info |
+| `SecurityPolicy` | `esxcli system secpolicy domain list/set --show-all` — security policy domain enforcement levels |
+| `VmkNic` | `esxcli network ip interface ipv4/ipv6 address list`, `esxcli network ip interface tag get`, `esxcli network vswitch standard/dvs portgroup list` — VMkernel NIC configuration |
+| `WBEM` | `esxcli system wbem get`, `esxcli system wbem provider list` — WBEM/CIM provider status |
+| `CollectInfo` | `esxcli system visorfs get/ramdisk list`, `esxcli system snmp get`, `esxcli system stats uptime get` — system runtime info |
 | `MemoryArtifacts` | `/var/core/*`, `/vmkernel-zdump*` (only with `--include-memory`); `esxcli system coredump partition/file get` |
 
 ## Output Format

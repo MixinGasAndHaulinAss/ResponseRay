@@ -37,6 +37,13 @@ func Process(em *core.Emitter, dirPath, ts string) int {
 	total += processESXiSSH(em, artifactDir, ts)
 	total += processESXiPersistence(em, artifactDir, ts)
 	total += processESXiVMConfigs(em, artifactDir, ts)
+	total += processESXiEnvironment(em, dirPath, ts)
+	total += processESXiMultipathing(em, dirPath, ts)
+	total += processESXiSCSI(em, dirPath, ts)
+	total += processESXiSecPolicy(em, dirPath, ts)
+	total += processESXiVmkNic(em, dirPath, ts)
+	total += processESXiWBEM(em, dirPath, ts)
+	total += processESXiHardware(em, dirPath, ts)
 	log.Printf("collectoringest/esxi: parsers added %d events", total)
 	return total
 }
@@ -990,8 +997,393 @@ func parseVMXSummary(path string) map[string]interface{} {
 }
 
 // ---------------------------------------------------------------------------
+// Environment variables - env or printenv output (KEY=VALUE lines).
+// ---------------------------------------------------------------------------
+
+func processESXiEnvironment(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	for _, name := range []string{"environment.txt", "printenv.txt"} {
+		path := filepath.Join(dirPath, "live", name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			t := strings.TrimSpace(line)
+			if t == "" || !strings.Contains(t, "=") {
+				continue
+			}
+			idx := strings.Index(t, "=")
+			key := t[:idx]
+			val := t[idx+1:]
+			if key == "" {
+				continue
+			}
+			msg := fmt.Sprintf("Environment: %s = %s", key, truncate(val, 100))
+			if em.AddEvent(ts, "Collection Time (Environment Variable)", msg, "esxi_environment",
+				"RR-ESXi", "ResponseRay ESXi Collector - Environment",
+				"esxi:system:environment", map[string]interface{}{
+					"variable_name":  key,
+					"variable_value": val,
+				}) {
+				added++
+			}
+		}
+		break // Only need one source
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// Multipathing - esxcli storage nmp device/path list.
+// ---------------------------------------------------------------------------
+
+func processESXiMultipathing(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	// Parse storage_nmp_device.txt
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "storage_nmp_device.txt"))
+	for _, row := range rows {
+		device := row["Device"]
+		if device == "" {
+			device = row["Device Display Name"]
+		}
+		if device == "" {
+			continue
+		}
+		pathPolicy := row["Path Selection Policy"]
+		storageArray := row["Storage Array Type"]
+		msg := fmt.Sprintf("Multipath Device: %s [%s, %s]", device, pathPolicy, storageArray)
+		if em.AddEvent(ts, "Collection Time (Multipath Device)", msg, "esxi_multipath",
+			"RR-ESXi", "ResponseRay ESXi Collector - Multipathing",
+			"esxi:storage:multipath", map[string]interface{}{
+				"device":              device,
+				"path_policy":         pathPolicy,
+				"storage_array_type":  storageArray,
+				"raw":                 row,
+			}) {
+			added++
+		}
+	}
+	// Parse storage_nmp_path.txt
+	rows, _ = readEsxcliTable(filepath.Join(dirPath, "live", "storage_nmp_path.txt"))
+	for _, row := range rows {
+		runtime := row["Runtime Name"]
+		if runtime == "" {
+			continue
+		}
+		device := row["Device"]
+		state := row["State"]
+		adapter := row["Adapter"]
+		msg := fmt.Sprintf("Multipath Path: %s -> %s [%s]", runtime, device, state)
+		if em.AddEvent(ts, "Collection Time (Multipath Path)", msg, "esxi_multipath_path",
+			"RR-ESXi", "ResponseRay ESXi Collector - Multipathing",
+			"esxi:storage:multipath_path", map[string]interface{}{
+				"runtime_name": runtime,
+				"device":       device,
+				"state":        state,
+				"adapter":      adapter,
+				"raw":          row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// SCSI - esxcli storage san/scsi device list.
+// ---------------------------------------------------------------------------
+
+func processESXiSCSI(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	// FC adapters
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "storage_san_adapter.txt"))
+	for _, row := range rows {
+		adapter := row["Adapter"]
+		if adapter == "" {
+			continue
+		}
+		wwnn := row["Node Name"]
+		wwpn := row["Port Name"]
+		msg := fmt.Sprintf("FC Adapter: %s WWPN=%s", adapter, wwpn)
+		if em.AddEvent(ts, "Collection Time (SCSI FC Adapter)", msg, "esxi_scsi",
+			"RR-ESXi", "ResponseRay ESXi Collector - SCSI",
+			"esxi:storage:scsi_adapter", map[string]interface{}{
+				"adapter":   adapter,
+				"wwnn":      wwnn,
+				"wwpn":      wwpn,
+				"raw":       row,
+			}) {
+			added++
+		}
+	}
+	// iSCSI adapters
+	rows, _ = readEsxcliTable(filepath.Join(dirPath, "live", "storage_san_iscsi.txt"))
+	for _, row := range rows {
+		adapter := row["Adapter"]
+		if adapter == "" {
+			continue
+		}
+		name := row["Name"]
+		driver := row["Driver"]
+		msg := fmt.Sprintf("iSCSI Adapter: %s (%s)", adapter, name)
+		if em.AddEvent(ts, "Collection Time (SCSI iSCSI Adapter)", msg, "esxi_iscsi",
+			"RR-ESXi", "ResponseRay ESXi Collector - SCSI",
+			"esxi:storage:iscsi_adapter", map[string]interface{}{
+				"adapter": adapter,
+				"name":    name,
+				"driver":  driver,
+				"raw":     row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// Security Policy Domain - esxcli system secpolicy domain list.
+// ---------------------------------------------------------------------------
+
+func processESXiSecPolicy(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "secpolicy_domain.txt"))
+	for _, row := range rows {
+		domain := row["Domain"]
+		if domain == "" {
+			domain = row["Name"]
+		}
+		if domain == "" {
+			continue
+		}
+		level := row["Enforcement Level"]
+		enabled := row["Enabled"]
+		msg := fmt.Sprintf("Security Policy: %s [Enforcement=%s, Enabled=%s]", domain, level, enabled)
+		if em.AddEvent(ts, "Collection Time (Security Policy)", msg, "esxi_secpolicy",
+			"RR-ESXi", "ResponseRay ESXi Collector - SecurityPolicy",
+			"esxi:security:policy", map[string]interface{}{
+				"domain":            domain,
+				"enforcement_level": level,
+				"enabled":           enabled,
+				"raw":               row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// VmkNic - esxcli network ip interface ipv4/ipv6 address list.
+// ---------------------------------------------------------------------------
+
+func processESXiVmkNic(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	// IPv4 addresses
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "vmknic_list.txt"))
+	for _, row := range rows {
+		name := row["Name"]
+		if name == "" {
+			name = row["Interface"]
+		}
+		if name == "" {
+			continue
+		}
+		ipv4 := row["IPv4 Address"]
+		if ipv4 == "" {
+			ipv4 = row["Address"]
+		}
+		netmask := row["IPv4 Netmask"]
+		if netmask == "" {
+			netmask = row["Netmask"]
+		}
+		gateway := row["IPv4 Gateway"]
+		addrType := row["Address Type"]
+		msg := fmt.Sprintf("VMkernel NIC: %s %s/%s [%s]", name, ipv4, netmask, addrType)
+		if em.AddEvent(ts, "Collection Time (VMkernel NIC)", msg, "esxi_vmknic",
+			"RR-ESXi", "ResponseRay ESXi Collector - VmkNic",
+			"esxi:network:vmknic", map[string]interface{}{
+				"interface":    name,
+				"ipv4_address": ipv4,
+				"netmask":      netmask,
+				"gateway":      gateway,
+				"address_type": addrType,
+				"raw":          row,
+			}) {
+			added++
+		}
+	}
+	// IPv6 addresses
+	rows, _ = readEsxcliTable(filepath.Join(dirPath, "live", "vmknic_ipv6.txt"))
+	for _, row := range rows {
+		name := row["Name"]
+		if name == "" {
+			name = row["Interface"]
+		}
+		if name == "" {
+			continue
+		}
+		ipv6 := row["IPv6 Address"]
+		if ipv6 == "" {
+			ipv6 = row["Address"]
+		}
+		prefix := row["Prefix Length"]
+		addrType := row["Type"]
+		msg := fmt.Sprintf("VMkernel NIC (IPv6): %s %s/%s", name, ipv6, prefix)
+		if em.AddEvent(ts, "Collection Time (VMkernel NIC IPv6)", msg, "esxi_vmknic",
+			"RR-ESXi", "ResponseRay ESXi Collector - VmkNic",
+			"esxi:network:vmknic_ipv6", map[string]interface{}{
+				"interface":     name,
+				"ipv6_address":  ipv6,
+				"prefix_length": prefix,
+				"address_type":  addrType,
+				"raw":           row,
+			}) {
+			added++
+		}
+	}
+	// Portgroups
+	rows, _ = readEsxcliTable(filepath.Join(dirPath, "live", "vmknic_portgroup.txt"))
+	for _, row := range rows {
+		name := row["Name"]
+		if name == "" {
+			continue
+		}
+		vswitch := row["Virtual Switch"]
+		vlanID := row["VLAN ID"]
+		msg := fmt.Sprintf("Portgroup: %s on %s (VLAN %s)", name, vswitch, vlanID)
+		if em.AddEvent(ts, "Collection Time (vSwitch Portgroup)", msg, "esxi_portgroup",
+			"RR-ESXi", "ResponseRay ESXi Collector - VmkNic",
+			"esxi:network:portgroup", map[string]interface{}{
+				"name":           name,
+				"virtual_switch": vswitch,
+				"vlan_id":        vlanID,
+				"raw":            row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// WBEM - esxcli system wbem get/provider list.
+// ---------------------------------------------------------------------------
+
+func processESXiWBEM(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	// WBEM config (get)
+	path := filepath.Join(dirPath, "live", "wbem_get.txt")
+	data, err := os.ReadFile(path)
+	if err == nil && len(data) > 0 {
+		fields := parseKeyValueBlock(string(data))
+		if len(fields) > 0 {
+			enabled := fields["Enabled"]
+			port := fields["Port"]
+			loglevel := fields["Loglevel"]
+			msg := fmt.Sprintf("WBEM Config: Enabled=%s Port=%s Loglevel=%s", enabled, port, loglevel)
+			if em.AddEvent(ts, "Collection Time (WBEM Configuration)", msg, "esxi_wbem",
+				"RR-ESXi", "ResponseRay ESXi Collector - WBEM",
+				"esxi:system:wbem_config", map[string]interface{}{
+					"enabled":  enabled,
+					"port":     port,
+					"loglevel": loglevel,
+					"raw":      fields,
+				}) {
+				added++
+			}
+		}
+	}
+	// WBEM providers
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "wbem_provider_list.txt"))
+	for _, row := range rows {
+		name := row["Name"]
+		if name == "" {
+			continue
+		}
+		status := row["Status"]
+		msg := fmt.Sprintf("WBEM Provider: %s [%s]", name, status)
+		if em.AddEvent(ts, "Collection Time (WBEM Provider)", msg, "esxi_wbem_provider",
+			"RR-ESXi", "ResponseRay ESXi Collector - WBEM",
+			"esxi:system:wbem_provider", map[string]interface{}{
+				"provider_name": name,
+				"status":        status,
+				"raw":           row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
+// Hardware - additional hardware info (CPU, PCI, clock).
+// ---------------------------------------------------------------------------
+
+func processESXiHardware(em *core.Emitter, dirPath, ts string) int {
+	added := 0
+	// CPU info
+	rows, _ := readEsxcliTable(filepath.Join(dirPath, "live", "hardware_cpu.txt"))
+	for _, row := range rows {
+		id := row["CPU"]
+		if id == "" {
+			id = row["Id"]
+		}
+		if id == "" {
+			continue
+		}
+		family := row["Family"]
+		model := row["Model"]
+		brand := row["Brand"]
+		msg := fmt.Sprintf("CPU: %s - %s (Family %s, Model %s)", id, brand, family, model)
+		if em.AddEvent(ts, "Collection Time (CPU Info)", msg, "esxi_cpu",
+			"RR-ESXi", "ResponseRay ESXi Collector - Hardware",
+			"esxi:hardware:cpu", map[string]interface{}{
+				"cpu_id": id,
+				"family": family,
+				"model":  model,
+				"brand":  brand,
+				"raw":    row,
+			}) {
+			added++
+		}
+	}
+	// PCI devices
+	rows, _ = readEsxcliTable(filepath.Join(dirPath, "live", "hardware_pci.txt"))
+	for _, row := range rows {
+		addr := row["Address"]
+		if addr == "" {
+			continue
+		}
+		vendorName := row["Vendor Name"]
+		deviceName := row["Device Name"]
+		className := row["Device Class Name"]
+		msg := fmt.Sprintf("PCI: %s - %s %s (%s)", addr, vendorName, deviceName, className)
+		if em.AddEvent(ts, "Collection Time (PCI Device)", msg, "esxi_pci",
+			"RR-ESXi", "ResponseRay ESXi Collector - Hardware",
+			"esxi:hardware:pci", map[string]interface{}{
+				"address":     addr,
+				"vendor_name": vendorName,
+				"device_name": deviceName,
+				"class_name":  className,
+				"raw":         row,
+			}) {
+			added++
+		}
+	}
+	return added
+}
+
+// ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
 
 func oneLine(s string) string {
 	s = strings.TrimSpace(s)

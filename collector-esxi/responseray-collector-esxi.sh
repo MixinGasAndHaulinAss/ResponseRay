@@ -12,7 +12,7 @@
 
 set -u
 
-VERSION="2026.4.30.1"
+VERSION="2026.4.30.2"
 HOSTNAME="$(hostname 2>/dev/null || echo esxi-host)"
 TS_UTC="$(date -u +%Y%m%dT%H%M%SZ 2>/dev/null || date -u +%Y%m%d_%H%M%S)"
 TS_RFC="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
@@ -406,6 +406,67 @@ collect_hardware() {
   run_capture "live/hardware_smbios.txt"  "hardware" -- smbiosDump
   run_capture "live/hardware_lspci.txt"   "hardware" -- lspci -p
   run_capture "live/hardware_usb.txt"     "hardware" -- esxcli hardware usb passthrough device list
+  run_capture "live/hardware_ipmi.txt"    "hardware" -- esxcli hardware ipmi sel list
+  end_collector
+}
+
+collect_environment() {
+  start_collector "Environment"
+  run_capture "live/environment.txt"      "environment" -- env
+  run_capture "live/printenv.txt"         "environment" -- printenv
+  end_collector
+}
+
+collect_multipathing() {
+  start_collector "Multipathing"
+  run_capture "live/storage_nmp_device.txt"    "multipathing" -- esxcli storage nmp device list
+  run_capture "live/storage_nmp_path.txt"      "multipathing" -- esxcli storage nmp path list
+  run_capture "live/storage_nmp_satp_list.txt" "multipathing" -- esxcli storage nmp satp list
+  run_capture "live/storage_nmp_psp.txt"       "multipathing" -- esxcli storage nmp psp list
+  run_capture "live/storage_core_plugin.txt"   "multipathing" -- esxcli storage core plugin list
+  end_collector
+}
+
+collect_scsi() {
+  start_collector "SCSI"
+  run_capture "live/storage_scsi_device.txt"  "scsi" -- esxcli storage vmfs extent list
+  run_capture "live/storage_san_adapter.txt"  "scsi" -- esxcli storage san fc list
+  run_capture "live/storage_san_iscsi.txt"    "scsi" -- esxcli iscsi adapter list
+  run_capture "live/storage_core_claimrule.txt" "scsi" -- esxcli storage core claimrule list
+  run_capture "live/storage_core_device_vaai.txt" "scsi" -- esxcli storage core device vaai status get
+  end_collector
+}
+
+collect_secpolicy() {
+  start_collector "SecurityPolicy"
+  run_capture "live/secpolicy_domain.txt"     "secpolicy" -- esxcli system secpolicy domain list
+  run_capture "live/secpolicy_domain_set.txt" "secpolicy" -- esxcli system secpolicy domain set --show-all
+  end_collector
+}
+
+collect_vmknic() {
+  start_collector "VmkNic"
+  run_capture "live/vmknic_list.txt"          "vmknic" -- esxcli network ip interface ipv4 address list
+  run_capture "live/vmknic_ipv6.txt"          "vmknic" -- esxcli network ip interface ipv6 address list
+  run_capture "live/vmknic_tag.txt"           "vmknic" -- esxcli network ip interface tag get
+  run_capture "live/vmknic_portgroup.txt"     "vmknic" -- esxcli network vswitch standard portgroup list
+  run_capture "live/vmknic_dvs_portgroup.txt" "vmknic" -- esxcli network vswitch dvs vmware portgroup list
+  end_collector
+}
+
+collect_wbem() {
+  start_collector "WBEM"
+  run_capture "live/wbem_get.txt"             "wbem" -- esxcli system wbem get
+  run_capture "live/wbem_provider_list.txt"   "wbem" -- esxcli system wbem provider list
+  end_collector
+}
+
+collect_collectinfo() {
+  start_collector "CollectInfo"
+  run_capture "live/collectinfo_visorfs.txt"  "collectinfo" -- esxcli system visorfs get
+  run_capture "live/collectinfo_visorfs_ramdisk.txt" "collectinfo" -- esxcli system visorfs ramdisk list
+  run_capture "live/collectinfo_snmp.txt"     "collectinfo" -- esxcli system snmp get
+  run_capture "live/collectinfo_stats.txt"    "collectinfo" -- esxcli system stats uptime get
   end_collector
 }
 
@@ -464,6 +525,13 @@ run_step Config           collect_config
 run_step Persistence      collect_persistence
 run_step Hardware         collect_hardware
 run_step Software         collect_software
+run_step Environment      collect_environment
+run_step Multipathing     collect_multipathing
+run_step SCSI             collect_scsi
+run_step SecurityPolicy   collect_secpolicy
+run_step VmkNic           collect_vmknic
+run_step WBEM             collect_wbem
+run_step CollectInfo      collect_collectinfo
 run_step MemoryArtifacts  collect_memory_artifacts
 
 END_TS="$(date +%s 2>/dev/null || echo 0)"

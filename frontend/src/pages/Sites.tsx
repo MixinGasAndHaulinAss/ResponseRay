@@ -31,9 +31,11 @@ chmod +x responseray-collector-macos
 sudo ./responseray-collector-macos --include-memory`,
   },
   esxi: {
-    steps: ['Copy to ESXi host', 'Make executable', 'Run the script'],
-    command: `chmod +x responseray-collector-esxi.sh
-./responseray-collector-esxi.sh`,
+    steps: ['SCP to ESXi host (enable SSH first)', 'Make executable', 'Run as root with output to datastore'],
+    command: `scp responseray-collector-esxi.sh root@esxi-host:/tmp/
+ssh root@esxi-host
+chmod +x /tmp/responseray-collector-esxi.sh
+/tmp/responseray-collector-esxi.sh --output /vmfs/volumes/datastore1`,
   },
 }
 
