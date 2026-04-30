@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Plus, Trash2, FolderOpen, Key, Sun, Moon, Download, Apple, Server, Terminal, Monitor, AlertCircle, Loader2 } from 'lucide-react'
+import { Shield, Plus, Trash2, FolderOpen, Key, Sun, Moon, Download, Apple, Server, Terminal, Monitor, AlertCircle, Loader2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react'
 import { api, type SiteWithCounts, type CollectorInfo } from '../lib/api'
 import { formatNumber, formatDateTimeShort, formatBytes } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
@@ -11,6 +11,30 @@ const COLLECTOR_ICON: Record<string, typeof Monitor> = {
   linux: Terminal,
   macos: Apple,
   esxi: Server,
+}
+
+const COLLECTOR_INSTRUCTIONS: Record<string, { steps: string[]; command: string }> = {
+  windows: {
+    steps: ['Run as Administrator'],
+    command: '.\\ResponseRayCollector.exe',
+  },
+  linux: {
+    steps: ['Extract the archive', 'Make executable', 'Run as root with memory collection'],
+    command: `tar -xzf responseray-collector-linux.tar.gz
+chmod +x responseray-collector-linux
+sudo ./responseray-collector-linux --include-memory`,
+  },
+  macos: {
+    steps: ['Extract the archive', 'Make executable', 'Run as root with memory collection'],
+    command: `tar -xzf responseray-collector-macos.tar.gz
+chmod +x responseray-collector-macos
+sudo ./responseray-collector-macos --include-memory`,
+  },
+  esxi: {
+    steps: ['Copy to ESXi host', 'Make executable', 'Run the script'],
+    command: `chmod +x responseray-collector-esxi.sh
+./responseray-collector-esxi.sh`,
+  },
 }
 
 const COLLECTOR_FALLBACK: CollectorInfo[] = [
@@ -58,6 +82,17 @@ export default function Sites() {
   const [collectorsOpen, setCollectorsOpen] = useState(false)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [expandedCollector, setExpandedCollector] = useState<string | null>(null)
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null)
+
+  const copyCommand = async (platform: string) => {
+    const instructions = COLLECTOR_INSTRUCTIONS[platform]
+    if (instructions) {
+      await navigator.clipboard.writeText(instructions.command)
+      setCopiedCommand(platform)
+      setTimeout(() => setCopiedCommand(null), 2000)
+    }
+  }
 
   const handleDownload = async (platform: string) => {
     setDownloadError(null)
@@ -142,6 +177,8 @@ export default function Sites() {
               {(collectors ?? COLLECTOR_FALLBACK).map((c) => {
                 const Icon = COLLECTOR_ICON[c.platform] ?? Server
                 const isLoading = downloading === c.platform
+                const isExpanded = expandedCollector === c.platform
+                const instructions = COLLECTOR_INSTRUCTIONS[c.platform]
                 return (
                   <div
                     key={c.platform}
@@ -169,29 +206,67 @@ export default function Sites() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() => handleDownload(c.platform)}
-                      disabled={!c.available || isLoading}
-                      className="mt-auto flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
-                      title={!c.available ? (c.error || 'Not bundled with this deployment') : undefined}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Downloading…
-                        </>
-                      ) : c.available ? (
-                        <>
-                          <Download className="w-4 h-4" />
-                          Download
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="w-4 h-4" />
-                          Unavailable
-                        </>
+                    <div className="flex gap-2 mt-auto">
+                      <button
+                        onClick={() => handleDownload(c.platform)}
+                        disabled={!c.available || isLoading}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                        title={!c.available ? (c.error || 'Not bundled with this deployment') : undefined}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Downloading…
+                          </>
+                        ) : c.available ? (
+                          <>
+                            <Download className="w-4 h-4" />
+                            Download
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4" />
+                            Unavailable
+                          </>
+                        )}
+                      </button>
+                      {instructions && (
+                        <button
+                          onClick={() => setExpandedCollector(isExpanded ? null : c.platform)}
+                          className="flex items-center justify-center px-3 py-2 text-sm rounded-md bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-foreground transition-colors"
+                          title="Show usage instructions"
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
                       )}
-                    </button>
+                    </div>
+
+                    {isExpanded && instructions && (
+                      <div className="mt-3 pt-3 border-t border-gray-800">
+                        <div className="text-xs text-gray-400 mb-2 font-medium">Usage Instructions:</div>
+                        <ol className="text-xs text-gray-500 mb-2 space-y-1 list-decimal list-inside">
+                          {instructions.steps.map((step, i) => (
+                            <li key={i}>{step}</li>
+                          ))}
+                        </ol>
+                        <div className="relative">
+                          <pre className="bg-gray-900 border border-gray-700 rounded-md p-3 text-xs text-gray-300 font-mono overflow-x-auto whitespace-pre-wrap">
+                            {instructions.command}
+                          </pre>
+                          <button
+                            onClick={() => copyCommand(c.platform)}
+                            className="absolute top-2 right-2 p-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-foreground transition-colors"
+                            title="Copy to clipboard"
+                          >
+                            {copiedCommand === c.platform ? (
+                              <Check className="w-3.5 h-3.5 text-green-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
