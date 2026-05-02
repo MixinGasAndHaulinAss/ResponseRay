@@ -18,6 +18,11 @@ ignored:
   # DL3007: latest tag. We use latest only for transient buildx/cache
   #         operations, not for runtime images.
   - DL3007
+  # DL3003: prefer WORKDIR over `RUN cd ...`. Multi-stage builds in
+  #         Dockerfile.api intentionally use `cd` inside one-shot RUN
+  #         commands (e.g. compiling collectors per-platform) where
+  #         WORKDIR would persist into the next layer. Keep as RUN cd.
+  - DL3003
 
 trustedRegistries:
   - docker.io

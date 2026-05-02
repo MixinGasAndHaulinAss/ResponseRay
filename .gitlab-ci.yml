@@ -66,7 +66,9 @@ stages:
   - mirror
 
 variables:
-  GO_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.22"
+  # Bumped 1.22 -> 1.25 to satisfy backend/go.mod after pgx v5.9.0 CVE
+  # patch (CVE-2026-33816). 1.25 also unblocks govulncheck@latest.
+  GO_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.25"
   GO_IMAGE_CTT: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.26-bookworm"
   NODE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/node:20-alpine"
   ALPINE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/alpine:3.19"
@@ -294,12 +296,21 @@ security:gitleaks:
   script:
     - gitleaks version
     - |
+      # Logs use --redact (secrets blanked); full unredacted match goes to
+      # the private artifact for operator triage. Anyone who can run the
+      # pipeline can see the artifact, so treat it as confidential.
       if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
-        gitleaks detect --source . --redact --no-banner \
+        gitleaks detect --source . --no-banner --verbose --redact \
+          --report-path gitleaks-report.json \
           --log-opts="--all $CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD"
       else
-        gitleaks detect --source . --redact --no-banner
+        gitleaks detect --source . --no-banner --verbose --redact \
+          --report-path gitleaks-report.json
       fi
+  artifacts:
+    when: always
+    paths: ["gitleaks-report.json"]
+    expire_in: "30 days"
   rules: !reference [.rules-always]
 
 # Filesystem CVE scan: dependencies, lockfiles, OS packages in the working
@@ -332,12 +343,17 @@ security:trivy-fs:
 
 # Go vulnerability check (analyzes both deps AND source — only flags CVEs
 # whose vulnerable code path is actually reachable from your binaries).
+# Uses a newer Go than the build image because govulncheck@latest needs
+# Go >= 1.25 (vuln tooling tracks the toolchain). The MODULES still
+# resolve their own go.mod toolchain pin, so this doesn't force a runtime
+# upgrade — it only powers the analysis.
 security:govulncheck:
   stage: security
-  image: "$GO_IMAGE"
+  image: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.25"
   variables:
     GIT_DEPTH: "1"
     GOFLAGS: "-mod=mod"
+    GOTOOLCHAIN: "auto"
   before_script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
     - export PATH="$(go env GOPATH)/bin:$PATH"
