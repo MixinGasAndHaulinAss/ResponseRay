@@ -10,8 +10,10 @@ import (
 // PackageCollector enumerates installed packages from dpkg, rpm, pacman, apk, and snap/flatpak.
 type PackageCollector struct{}
 
-func (c *PackageCollector) Name() string        { return "Packages" }
-func (c *PackageCollector) Description() string { return "Installed package inventory (dpkg/rpm/pacman/apk/snap/flatpak)" }
+func (c *PackageCollector) Name() string { return "Packages" }
+func (c *PackageCollector) Description() string {
+	return "Installed package inventory (dpkg/rpm/pacman/apk/snap/flatpak)"
+}
 
 func (c *PackageCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

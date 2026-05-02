@@ -21,12 +21,12 @@ const MaxSingleFileBytes = 500 * 1024 * 1024
 
 // Context is passed to every collector and accumulates collected files for the manifest.
 type Context struct {
-	OutputDir   string
-	Hostname    string
-	IncludeMem  bool
-	mu          sync.Mutex
-	files       []manifest.FileEntry
-	totalBytes  int64
+	OutputDir  string
+	Hostname   string
+	IncludeMem bool
+	mu         sync.Mutex
+	files      []manifest.FileEntry
+	totalBytes int64
 }
 
 // NewContext creates a fresh collection context rooted at outputDir.

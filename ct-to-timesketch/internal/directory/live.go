@@ -484,12 +484,12 @@ func processUserAccounts(path string, conv *converter.Converter, collectionTime 
 		if conv.AddEvent(ts, "Account Created/Modified", msg, "account_created",
 			"RR-Collector", "ResponseRay Collector - User Accounts",
 			"windows:registry:sam_users", map[string]interface{}{
-				"username":         e.Username,
-				"full_name":        e.FullName,
-				"user_sid":         e.SID,
-				"account_status":   status,
-				"admin_priv":       isAdmin,
-				"groups":           strings.Join(e.Groups, ", "),
+				"username":          e.Username,
+				"full_name":         e.FullName,
+				"user_sid":          e.SID,
+				"account_status":    status,
+				"admin_priv":        isAdmin,
+				"groups":            strings.Join(e.Groups, ", "),
 				"password_last_set": e.PasswordLastSet,
 			}) {
 			added++
@@ -606,12 +606,12 @@ func processDevices(path string, conv *converter.Converter, collectionTime strin
 		if conv.AddEvent(collectionTime, "Collection Time (Device Attached)", "Device: "+deviceDesc,
 			"attached_device", "RR-Collector", "ResponseRay Collector - Attached Devices",
 			"windows:registry:usbstor", map[string]interface{}{
-				"device_name":   e.Name,
-				"device_id":     e.DeviceID,
-				"manufacturer":  e.Manufacturer,
-				"status":        e.Status,
-				"class_name":    e.ClassName,
-				"serial_num":    e.SerialNumber,
+				"device_name":  e.Name,
+				"device_id":    e.DeviceID,
+				"manufacturer": e.Manufacturer,
+				"status":       e.Status,
+				"class_name":   e.ClassName,
+				"serial_num":   e.SerialNumber,
 			}) {
 			added++
 		}

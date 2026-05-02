@@ -8,8 +8,10 @@ import (
 
 type KernelCollector struct{}
 
-func (c *KernelCollector) Name() string        { return "Kernel" }
-func (c *KernelCollector) Description() string { return "Loaded kernel modules, sysctl, dmesg, tainted kernel detection" }
+func (c *KernelCollector) Name() string { return "Kernel" }
+func (c *KernelCollector) Description() string {
+	return "Loaded kernel modules, sysctl, dmesg, tainted kernel detection"
+}
 
 func (c *KernelCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

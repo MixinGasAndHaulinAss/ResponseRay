@@ -10,8 +10,10 @@ import (
 
 type SystemdCollector struct{}
 
-func (c *SystemdCollector) Name() string        { return "Systemd" }
-func (c *SystemdCollector) Description() string { return "Service unit files, drop-ins, enabled services, list-units output" }
+func (c *SystemdCollector) Name() string { return "Systemd" }
+func (c *SystemdCollector) Description() string {
+	return "Service unit files, drop-ins, enabled services, list-units output"
+}
 
 func (c *SystemdCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

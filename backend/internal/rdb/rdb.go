@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	QueueKey      = "responseray:queue"
+	QueueKey       = "responseray:queue"
 	progressPrefix = "responseray:progress:"
 	progressTTL    = 24 * time.Hour
 )

@@ -503,4 +503,3 @@ func inferChannelFromFilename(filename string) string {
 
 	return name
 }
-

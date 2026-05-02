@@ -12,8 +12,10 @@ import (
 
 type ProcessCollector struct{}
 
-func (c *ProcessCollector) Name() string        { return "Processes" }
-func (c *ProcessCollector) Description() string { return "Running processes (ps), per-PID /proc snapshot, lsof open files" }
+func (c *ProcessCollector) Name() string { return "Processes" }
+func (c *ProcessCollector) Description() string {
+	return "Running processes (ps), per-PID /proc snapshot, lsof open files"
+}
 
 func (c *ProcessCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

@@ -14,8 +14,10 @@ import (
 // (by default) the user's home media to keep size manageable.
 type FileSystemCollector struct{}
 
-func (c *FileSystemCollector) Name() string        { return "FileSystem" }
-func (c *FileSystemCollector) Description() string { return "Recursive walk of / with MACB timestamps written to JSONL" }
+func (c *FileSystemCollector) Name() string { return "FileSystem" }
+func (c *FileSystemCollector) Description() string {
+	return "Recursive walk of / with MACB timestamps written to JSONL"
+}
 
 var skipRoots = []string{
 	"/proc", "/sys", "/dev", "/run", "/tmp", "/var/tmp",
@@ -77,8 +79,10 @@ func (c *FileSystemCollector) Collect(ctx *fsutil.Context) Result {
 
 type MemoryCollector struct{}
 
-func (c *MemoryCollector) Name() string        { return "Memory" }
-func (c *MemoryCollector) Description() string { return "/proc/kcore, /proc/iomem, swap files (--include-memory)" }
+func (c *MemoryCollector) Name() string { return "Memory" }
+func (c *MemoryCollector) Description() string {
+	return "/proc/kcore, /proc/iomem, swap files (--include-memory)"
+}
 
 func (c *MemoryCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

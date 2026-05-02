@@ -19,11 +19,11 @@ import (
 func init() { extractors.Register(&Extractor{}) }
 
 const (
-	recordSize       = 1024
-	magicFILE        = 0x454C4946 // "FILE"
-	attrStdInfo      = 0x10
-	attrFileName     = 0x30
-	attrEnd          = 0xFFFFFFFF
+	recordSize    = 1024
+	magicFILE     = 0x454C4946 // "FILE"
+	attrStdInfo   = 0x10
+	attrFileName  = 0x30
+	attrEnd       = 0xFFFFFFFF
 	flagInUse     = 0x01
 	flagDirectory = 0x02
 	nsDOS         = 2
@@ -51,8 +51,10 @@ type mftEntry struct {
 
 type Extractor struct{}
 
-func (e *Extractor) Name() string        { return "mft" }
-func (e *Extractor) Description() string { return "Raw $MFT parsing for file timeline with $SI and $FN timestamps" }
+func (e *Extractor) Name() string { return "mft" }
+func (e *Extractor) Description() string {
+	return "Raw $MFT parsing for file timeline with $SI and $FN timestamps"
+}
 
 func (e *Extractor) Extract(inputPath string, conv *converter.Converter, idx *cache.Index) (int, error) {
 	mftFiles := findAllMFTs(idx)

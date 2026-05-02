@@ -11,8 +11,10 @@ import (
 
 type ApplicationLogsCollector struct{}
 
-func (c *ApplicationLogsCollector) Name() string        { return "ApplicationLogs" }
-func (c *ApplicationLogsCollector) Description() string { return "Logs and config for nginx/apache/mysql/postgres/redis/memcached/docker/k8s/various daemons" }
+func (c *ApplicationLogsCollector) Name() string { return "ApplicationLogs" }
+func (c *ApplicationLogsCollector) Description() string {
+	return "Logs and config for nginx/apache/mysql/postgres/redis/memcached/docker/k8s/various daemons"
+}
 
 func (c *ApplicationLogsCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

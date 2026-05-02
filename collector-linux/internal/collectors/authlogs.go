@@ -12,8 +12,10 @@ import (
 // AuthLogCollector captures /var/log/auth.log, secure, lastlog, wtmp, btmp, faillog, journal exports.
 type AuthLogCollector struct{}
 
-func (c *AuthLogCollector) Name() string        { return "AuthLogs" }
-func (c *AuthLogCollector) Description() string { return "Authentication logs: auth.log, secure, wtmp, btmp, lastlog, journal" }
+func (c *AuthLogCollector) Name() string { return "AuthLogs" }
+func (c *AuthLogCollector) Description() string {
+	return "Authentication logs: auth.log, secure, wtmp, btmp, lastlog, journal"
+}
 
 func (c *AuthLogCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

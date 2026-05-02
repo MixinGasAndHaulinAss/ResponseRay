@@ -13,20 +13,20 @@ import (
 // collections (windows, linux, macos, esxi). They are optional for backwards
 // compatibility with older Windows-only manifests.
 type Manifest struct {
-	CollectorVersion         string           `json:"collector_version"`
-	Platform                 string           `json:"platform,omitempty"`
-	Hostname                 string           `json:"hostname"`
-	OsVersion                string           `json:"os_version"`
-	Domain                   string           `json:"domain"`
-	CollectionTimestamp      string           `json:"collection_timestamp"`
-	CollectionDurationSeconds float64         `json:"collection_duration_seconds"`
-	UserProfiles             []string         `json:"user_profiles"`
-	TotalFiles               int              `json:"total_files"`
-	TotalBytes               int64            `json:"total_bytes"`
-	VssUsed                  bool             `json:"vss_used,omitempty"`
-	VssPath                  string           `json:"vss_path,omitempty"`
-	CollectorResults         []CollectorResult `json:"collector_results"`
-	Files                    []FileEntry      `json:"files"`
+	CollectorVersion          string            `json:"collector_version"`
+	Platform                  string            `json:"platform,omitempty"`
+	Hostname                  string            `json:"hostname"`
+	OsVersion                 string            `json:"os_version"`
+	Domain                    string            `json:"domain"`
+	CollectionTimestamp       string            `json:"collection_timestamp"`
+	CollectionDurationSeconds float64           `json:"collection_duration_seconds"`
+	UserProfiles              []string          `json:"user_profiles"`
+	TotalFiles                int               `json:"total_files"`
+	TotalBytes                int64             `json:"total_bytes"`
+	VssUsed                   bool              `json:"vss_used,omitempty"`
+	VssPath                   string            `json:"vss_path,omitempty"`
+	CollectorResults          []CollectorResult `json:"collector_results"`
+	Files                     []FileEntry       `json:"files"`
 }
 
 // CollectorResult holds the result of a single collector module.

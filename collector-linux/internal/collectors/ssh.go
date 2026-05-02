@@ -10,8 +10,10 @@ import (
 
 type SSHCollector struct{}
 
-func (c *SSHCollector) Name() string        { return "SSH" }
-func (c *SSHCollector) Description() string { return "sshd_config, ssh_config, host keys, per-user authorized_keys, known_hosts, ssh config" }
+func (c *SSHCollector) Name() string { return "SSH" }
+func (c *SSHCollector) Description() string {
+	return "sshd_config, ssh_config, host keys, per-user authorized_keys, known_hosts, ssh config"
+}
 
 func (c *SSHCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

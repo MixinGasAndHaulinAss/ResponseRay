@@ -8,8 +8,10 @@ import (
 
 type FirewallCollector struct{}
 
-func (c *FirewallCollector) Name() string        { return "Firewall" }
-func (c *FirewallCollector) Description() string { return "iptables/nftables/firewalld/ufw rule snapshots" }
+func (c *FirewallCollector) Name() string { return "Firewall" }
+func (c *FirewallCollector) Description() string {
+	return "iptables/nftables/firewalld/ufw rule snapshots"
+}
 
 func (c *FirewallCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

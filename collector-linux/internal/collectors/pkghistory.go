@@ -12,8 +12,10 @@ import (
 // Covers APT, YUM, DNF sources and history logs for forensic analysis.
 type PkgHistoryCollector struct{}
 
-func (c *PkgHistoryCollector) Name() string        { return "PkgHistory" }
-func (c *PkgHistoryCollector) Description() string { return "Package manager history and sources (APT, YUM, DNF)" }
+func (c *PkgHistoryCollector) Name() string { return "PkgHistory" }
+func (c *PkgHistoryCollector) Description() string {
+	return "Package manager history and sources (APT, YUM, DNF)"
+}
 
 func (c *PkgHistoryCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

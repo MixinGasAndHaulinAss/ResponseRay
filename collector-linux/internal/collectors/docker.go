@@ -8,8 +8,10 @@ import (
 
 type DockerCollector struct{}
 
-func (c *DockerCollector) Name() string        { return "Docker" }
-func (c *DockerCollector) Description() string { return "Docker container/image inventory if dockerd is installed" }
+func (c *DockerCollector) Name() string { return "Docker" }
+func (c *DockerCollector) Description() string {
+	return "Docker container/image inventory if dockerd is installed"
+}
 
 func (c *DockerCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()
@@ -41,8 +43,10 @@ func (c *DockerCollector) Collect(ctx *fsutil.Context) Result {
 
 type AuditdCollector struct{}
 
-func (c *AuditdCollector) Name() string        { return "Auditd" }
-func (c *AuditdCollector) Description() string { return "auditd rules, /var/log/audit/audit.log*, ausearch summaries" }
+func (c *AuditdCollector) Name() string { return "Auditd" }
+func (c *AuditdCollector) Description() string {
+	return "auditd rules, /var/log/audit/audit.log*, ausearch summaries"
+}
 
 func (c *AuditdCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

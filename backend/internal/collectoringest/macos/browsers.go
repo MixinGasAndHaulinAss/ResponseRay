@@ -13,22 +13,22 @@ import (
 // processMacBrowsers walks artifacts/browsers/<browser>/<user>/... and emits
 // per-row events from the captured SQLite databases. We support:
 //
-//   Chromium-family (chrome / chromium / edge / brave / opera / vivaldi /
-//   arc / yandex):
-//     History  -> web_history (urls/visits) + web_download (downloads)
-//     Cookies  -> web_cookie
-//     Login Data -> web_login
+//	Chromium-family (chrome / chromium / edge / brave / opera / vivaldi /
+//	arc / yandex):
+//	  History  -> web_history (urls/visits) + web_download (downloads)
+//	  Cookies  -> web_cookie
+//	  Login Data -> web_login
 //
-//   Safari:
-//     History.db -> web_history (history_items / history_visits)
-//     Downloads.plist is handled by the plist parser elsewhere.
+//	Safari:
+//	  History.db -> web_history (history_items / history_visits)
+//	  Downloads.plist is handled by the plist parser elsewhere.
 //
-//   Firefox:
-//     places.sqlite -> web_history (moz_places / moz_historyvisits) +
-//                      web_download (moz_annos with anno=downloads/destinationFileURI)
-//     cookies.sqlite -> web_cookie
-//     formhistory.sqlite -> form_history
-//     downloads.sqlite -> web_download
+//	Firefox:
+//	  places.sqlite -> web_history (moz_places / moz_historyvisits) +
+//	                   web_download (moz_annos with anno=downloads/destinationFileURI)
+//	  cookies.sqlite -> web_cookie
+//	  formhistory.sqlite -> form_history
+//	  downloads.sqlite -> web_download
 func processMacBrowsers(em *core.Emitter, artifactDir, ts string) int {
 	root := filepath.Join(artifactDir, "browsers")
 	if _, err := exists(root); err != nil {
@@ -217,13 +217,13 @@ func parseChromiumHistory(em *core.Emitter, path, browser, user, defaultTS strin
 				}
 				msg := fmt.Sprintf("Download: %s <- %s", targetPath.String, tabURL.String)
 				attrs := map[string]interface{}{
-					"browser":      browser,
-					"username":     user,
-					"target_path":  targetPath.String,
-					"source_url":   tabURL.String,
-					"mime_type":    mime.String,
-					"total_bytes":  totalBytes.Int64,
-					"state":        state.Int64,
+					"browser":     browser,
+					"username":    user,
+					"target_path": targetPath.String,
+					"source_url":  tabURL.String,
+					"mime_type":   mime.String,
+					"total_bytes": totalBytes.Int64,
+					"state":       state.Int64,
 				}
 				if em.AddEvent(t, "File Downloaded", msg, "web_download",
 					"RR-MacOS", "ResponseRay macOS Collector - "+browser+" Downloads",

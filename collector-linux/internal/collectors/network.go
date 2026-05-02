@@ -8,8 +8,10 @@ import (
 
 type NetworkLiveCollector struct{}
 
-func (c *NetworkLiveCollector) Name() string        { return "Network" }
-func (c *NetworkLiveCollector) Description() string { return "Active connections (ss), routes, interfaces, ARP, DNS resolvers, /etc/hosts" }
+func (c *NetworkLiveCollector) Name() string { return "Network" }
+func (c *NetworkLiveCollector) Description() string {
+	return "Active connections (ss), routes, interfaces, ARP, DNS resolvers, /etc/hosts"
+}
 
 func (c *NetworkLiveCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

@@ -8,18 +8,18 @@ import (
 // Manifest matches the schema produced by the Windows collector so the same backend can ingest
 // both Linux and Windows captures.
 type Manifest struct {
-	CollectorVersion          string             `json:"collector_version"`
-	Platform                  string             `json:"platform"`
-	Hostname                  string             `json:"hostname"`
-	OsVersion                 string             `json:"os_version"`
-	Domain                    string             `json:"domain"`
-	CollectionTimestamp       string             `json:"collection_timestamp"`
-	CollectionDurationSeconds float64            `json:"collection_duration_seconds"`
-	UserProfiles              []string           `json:"user_profiles"`
-	TotalFiles                int                `json:"total_files"`
-	TotalBytes                int64              `json:"total_bytes"`
-	CollectorResults          []CollectorResult  `json:"collector_results"`
-	Files                     []FileEntry        `json:"files"`
+	CollectorVersion          string            `json:"collector_version"`
+	Platform                  string            `json:"platform"`
+	Hostname                  string            `json:"hostname"`
+	OsVersion                 string            `json:"os_version"`
+	Domain                    string            `json:"domain"`
+	CollectionTimestamp       string            `json:"collection_timestamp"`
+	CollectionDurationSeconds float64           `json:"collection_duration_seconds"`
+	UserProfiles              []string          `json:"user_profiles"`
+	TotalFiles                int               `json:"total_files"`
+	TotalBytes                int64             `json:"total_bytes"`
+	CollectorResults          []CollectorResult `json:"collector_results"`
+	Files                     []FileEntry       `json:"files"`
 }
 
 type CollectorResult struct {

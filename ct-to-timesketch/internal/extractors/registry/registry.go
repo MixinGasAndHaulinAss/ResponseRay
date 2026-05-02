@@ -26,8 +26,10 @@ func init() {
 
 type Extractor struct{}
 
-func (e *Extractor) Name() string        { return "registry" }
-func (e *Extractor) Description() string { return "Windows Registry hives (ShellBags, UserAssist, USB, ShimCache, BAM, etc.)" }
+func (e *Extractor) Name() string { return "registry" }
+func (e *Extractor) Description() string {
+	return "Windows Registry hives (ShellBags, UserAssist, USB, ShimCache, BAM, etc.)"
+}
 
 func (e *Extractor) Extract(cachePath string, conv *converter.Converter, idx *cache.Index) (int, error) {
 	pattern := `(NTUSER\.DAT|UsrClass\.dat|SAM|SYSTEM|SOFTWARE|SECURITY|Amcache\.hve)$`
@@ -475,7 +477,7 @@ func parseUSBStor(reg *regparser.Registry, conv *converter.Converter, filename s
 				"CyberTriage Registry - "+filename, "windows:registry:usbstor",
 				map[string]interface{}{
 					"device_description": devKey.Name(),
-					"serial_number":     serialKey.Name(),
+					"serial_number":      serialKey.Name(),
 				}) {
 				events++
 			}

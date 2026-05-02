@@ -9,8 +9,10 @@ import (
 
 type PersistenceCollector struct{}
 
-func (c *PersistenceCollector) Name() string        { return "Persistence" }
-func (c *PersistenceCollector) Description() string { return "Autostart locations: rc.local, init.d, .bashrc, profile.d, autostart desktop entries, ld.so.preload" }
+func (c *PersistenceCollector) Name() string { return "Persistence" }
+func (c *PersistenceCollector) Description() string {
+	return "Autostart locations: rc.local, init.d, .bashrc, profile.d, autostart desktop entries, ld.so.preload"
+}
 
 func (c *PersistenceCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

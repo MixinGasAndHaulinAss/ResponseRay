@@ -9,8 +9,10 @@ import (
 
 type ShellHistoryCollector struct{}
 
-func (c *ShellHistoryCollector) Name() string        { return "ShellHistory" }
-func (c *ShellHistoryCollector) Description() string { return "Per-user .bash_history, .zsh_history, .fish_history, .python_history, .lesshst, .viminfo, .mysql_history, .psql_history" }
+func (c *ShellHistoryCollector) Name() string { return "ShellHistory" }
+func (c *ShellHistoryCollector) Description() string {
+	return "Per-user .bash_history, .zsh_history, .fish_history, .python_history, .lesshst, .viminfo, .mysql_history, .psql_history"
+}
 
 func (c *ShellHistoryCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

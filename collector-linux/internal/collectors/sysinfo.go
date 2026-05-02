@@ -12,8 +12,10 @@ import (
 // uptime, and uname output.
 type SystemInfoCollector struct{}
 
-func (c *SystemInfoCollector) Name() string        { return "SystemInfo" }
-func (c *SystemInfoCollector) Description() string { return "Distro release, hostname, kernel, uptime, timezone" }
+func (c *SystemInfoCollector) Name() string { return "SystemInfo" }
+func (c *SystemInfoCollector) Description() string {
+	return "Distro release, hostname, kernel, uptime, timezone"
+}
 
 func (c *SystemInfoCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

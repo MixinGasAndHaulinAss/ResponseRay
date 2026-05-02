@@ -315,10 +315,10 @@ type compiledHPExclusion struct {
 }
 
 type compiledResult struct {
-	analysisType string
-	score        string
+	analysisType  string
+	score         string
 	justification string
-	mitreAttack  []string
+	mitreAttack   []string
 }
 
 // CRDetection is a single CloudRules match against an event.

@@ -12,8 +12,10 @@ import (
 // shared memory, ulimits, lock files, and mail spool.
 type SecurityCollector struct{}
 
-func (c *SecurityCollector) Name() string        { return "Security" }
-func (c *SecurityCollector) Description() string { return "SUID binaries, shared memory, ulimits, lock files, capabilities" }
+func (c *SecurityCollector) Name() string { return "Security" }
+func (c *SecurityCollector) Description() string {
+	return "SUID binaries, shared memory, ulimits, lock files, capabilities"
+}
 
 func (c *SecurityCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

@@ -8,8 +8,10 @@ import (
 
 type UserCollector struct{}
 
-func (c *UserCollector) Name() string        { return "Users" }
-func (c *UserCollector) Description() string { return "/etc/passwd, /etc/shadow (hashes redacted ok), /etc/group, /etc/sudoers, sudoers.d" }
+func (c *UserCollector) Name() string { return "Users" }
+func (c *UserCollector) Description() string {
+	return "/etc/passwd, /etc/shadow (hashes redacted ok), /etc/group, /etc/sudoers, sudoers.d"
+}
 
 func (c *UserCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

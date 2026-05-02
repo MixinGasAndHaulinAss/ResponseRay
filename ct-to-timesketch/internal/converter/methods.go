@@ -47,18 +47,18 @@ func (c *Converter) ConvertProcessCollection(a Artifact) bool {
 	return c.AddEventFromArtifact(a, ts, "Program Execution Time", msg, "process_execution",
 		"CT-Registry", "CyberTriage CollectionTool - "+subType,
 		"windows:registry:userassist", map[string]interface{}{
-			"process_name":       name,
-			"process_path":       path,
-			"raw_path_data":      GetStr(a, "rawPathData"),
-			"command_line":       args,
-			"user_id":            userID,
-			"user_domain":        userDomain,
-			"user_sid":           GetStr(a, "userSID"),
-			"observation_type":   GetStr(a, "observationType"),
-			"ppid":               GetStr(a, "ppid"),
-			"parent_path":        GetStr(a, "parentPath"),
-			"elevated_admin":     GetStr(a, "elevatedAdminPriv"),
-			"is_service":         GetStr(a, "isService"),
+			"process_name":     name,
+			"process_path":     path,
+			"raw_path_data":    GetStr(a, "rawPathData"),
+			"command_line":     args,
+			"user_id":          userID,
+			"user_domain":      userDomain,
+			"user_sid":         GetStr(a, "userSID"),
+			"observation_type": GetStr(a, "observationType"),
+			"ppid":             GetStr(a, "ppid"),
+			"parent_path":      GetStr(a, "parentPath"),
+			"elevated_admin":   GetStr(a, "elevatedAdminPriv"),
+			"is_service":       GetStr(a, "isService"),
 		})
 }
 
@@ -278,8 +278,8 @@ func (c *Converter) ConvertProcessSystemAPI(a Artifact) bool {
 			"process_name": name,
 			"process_path": GetStr(a, "path"),
 			"pid":          pid,
-			"command_line":  args,
-			"user_id":       GetStr(a, "userID"),
+			"command_line": args,
+			"user_id":      GetStr(a, "userID"),
 		})
 }
 
@@ -330,18 +330,18 @@ func (c *Converter) ConvertNetworkConnectionSystemAPI(a Artifact) bool {
 	return c.AddEventFromArtifact(a, ts, "Connection Observed", msg, "network_connection",
 		"CT-Memory", "CyberTriage SystemAPI - Network Connections",
 		"windows:network:connection", map[string]interface{}{
-			"local_ip":          localIP,
-			"local_port":        localPort,
-			"remote_ip":         remoteIP,
-			"remote_port":       remotePort,
-			"connection_type":   connType,
-			"pid":               GetStr(a, "pid"),
-			"state":             GetStr(a, "state"),
-			"direction":         GetStr(a, "direction"),
-			"local_host_name":   GetStr(a, "localHostName"),
-			"local_domain":      GetStr(a, "localDomain"),
-			"remote_domain":     GetStr(a, "remoteDomain"),
-			"remote_host_name":  GetStr(a, "remoteHostName"),
+			"local_ip":         localIP,
+			"local_port":       localPort,
+			"remote_ip":        remoteIP,
+			"remote_port":      remotePort,
+			"connection_type":  connType,
+			"pid":              GetStr(a, "pid"),
+			"state":            GetStr(a, "state"),
+			"direction":        GetStr(a, "direction"),
+			"local_host_name":  GetStr(a, "localHostName"),
+			"local_domain":     GetStr(a, "localDomain"),
+			"remote_domain":    GetStr(a, "remoteDomain"),
+			"remote_host_name": GetStr(a, "remoteHostName"),
 		})
 }
 
@@ -544,10 +544,10 @@ func (c *Converter) ConvertTaskCacheEntry(e Artifact) bool {
 	return c.AddEvent(ts, tsDesc, msg, "scheduled_task",
 		"CT-Registry", "CyberTriage Registry - Task Scheduler Cache",
 		"task_scheduler:task_cache:entry", map[string]interface{}{
-			"task_name":           taskName,
-			"task_identifier":     taskID,
-			"key_path":            e["key_path"],
-			"last_written_time":   e["last_written_time"],
+			"task_name":            taskName,
+			"task_identifier":      taskID,
+			"key_path":             e["key_path"],
+			"last_written_time":    e["last_written_time"],
 			"last_registered_time": e["last_registered_time"],
 			"launch_time":          e["launch_time"],
 		})
@@ -659,11 +659,11 @@ func (c *Converter) ConvertSRUMNetworkUsage(e Artifact) bool {
 	return c.AddEvent(ts, "SRUM Network Data Usage Recorded", msg, "srum_network_data",
 		"CT-SRUM", "CyberTriage SRUM - Network Data Usage",
 		"windows:srum:network_usage", map[string]interface{}{
-			"application":    application,
-			"identifier":     e["auto_inc_id"],
-			"bytes_received": bytesIn,
-			"bytes_sent":     bytesOut,
-			"bytes_total":    bytesTotal,
+			"application":     application,
+			"identifier":      e["auto_inc_id"],
+			"bytes_received":  bytesIn,
+			"bytes_sent":      bytesOut,
+			"bytes_total":     bytesTotal,
 			"user_identifier": GetStr(e, "user_sid"),
 		})
 }
@@ -740,9 +740,9 @@ func (c *Converter) ConvertTimelineUserEngaged(e Artifact) bool {
 	return c.AddEvent(ts, "User Engagement Started", msg, "timeline_engaged",
 		"CT-Timeline", "CyberTriage Windows Timeline - User Engaged",
 		"windows:timeline:user_engaged", map[string]interface{}{
-			"application":              application,
-			"package_identifier":       GetStr(e, "package_name"),
-			"active_duration_seconds":  duration,
+			"application":             application,
+			"package_identifier":      GetStr(e, "package_name"),
+			"active_duration_seconds": duration,
 		})
 }
 
@@ -848,18 +848,18 @@ func (c *Converter) ConvertRunningProcess(a Artifact, collectionTime string) boo
 	return c.AddEventFromArtifact(a, ts, tsDesc, msg, "running_process",
 		"CT-Memory", "CyberTriage SystemAPI - Running Processes",
 		"ct:memory:process", map[string]interface{}{
-			"process_name":    name,
-			"process_path":    GetStr(a, "path"),
-			"raw_path_data":   GetStr(a, "rawPathData"),
-			"command_line":    args,
-			"pid":             pid,
-			"ppid":            GetStr(a, "ppid"),
-			"parent_path":     GetStr(a, "parentPath"),
-			"user_id":         GetStr(a, "userID"),
-			"user_domain":     GetStr(a, "userDomain"),
-			"user_sid":        GetStr(a, "userSID"),
-			"elevated_admin":  GetStr(a, "elevatedAdminPriv"),
-			"is_service":      GetStr(a, "isService"),
+			"process_name":   name,
+			"process_path":   GetStr(a, "path"),
+			"raw_path_data":  GetStr(a, "rawPathData"),
+			"command_line":   args,
+			"pid":            pid,
+			"ppid":           GetStr(a, "ppid"),
+			"parent_path":    GetStr(a, "parentPath"),
+			"user_id":        GetStr(a, "userID"),
+			"user_domain":    GetStr(a, "userDomain"),
+			"user_sid":       GetStr(a, "userSID"),
+			"elevated_admin": GetStr(a, "elevatedAdminPriv"),
+			"is_service":     GetStr(a, "isService"),
 		})
 }
 
@@ -969,19 +969,19 @@ func (c *Converter) ConvertActiveConnection(entry Artifact, entryTime, collectio
 	return c.AddEventFromArtifact(entry, ts, tsDesc, msg, "active_connection",
 		"CT-Memory", "CyberTriage SystemAPI - Network Connections",
 		"windows:network:connection", map[string]interface{}{
-			"connection_type":   connType,
-			"protocol":          protocol,
-			"local_ip":          localIP,
-			"local_port":        localPort,
-			"remote_ip":         remoteIP,
-			"remote_port":       remotePort,
-			"pid":               pid,
-			"state":             GetStr(entry, "state"),
-			"direction":         GetStr(entry, "direction"),
-			"local_host_name":   GetStr(entry, "localHostName"),
-			"local_domain":      GetStr(entry, "localDomain"),
-			"remote_domain":     GetStr(entry, "remoteDomain"),
-			"remote_host_name":  GetStr(entry, "remoteHostName"),
+			"connection_type":  connType,
+			"protocol":         protocol,
+			"local_ip":         localIP,
+			"local_port":       localPort,
+			"remote_ip":        remoteIP,
+			"remote_port":      remotePort,
+			"pid":              pid,
+			"state":            GetStr(entry, "state"),
+			"direction":        GetStr(entry, "direction"),
+			"local_host_name":  GetStr(entry, "localHostName"),
+			"local_domain":     GetStr(entry, "localDomain"),
+			"remote_domain":    GetStr(entry, "remoteDomain"),
+			"remote_host_name": GetStr(entry, "remoteHostName"),
 		})
 }
 
@@ -1030,23 +1030,23 @@ func (c *Converter) ConvertLogonSession(a Artifact) bool {
 	return c.AddEventFromArtifact(a, ts, tsDesc, msg, "logon_session",
 		"CT-SystemAPI", "CyberTriage SystemAPI - Logon Sessions",
 		"windows:logon:session", map[string]interface{}{
-			"user_id":              userID,
-			"user_domain":         userDomain,
-			"user_sid":            GetStr(a, "userSID"),
-			"remote_user":         GetStr(a, "remoteUser"),
-			"remote_domain":       GetStr(a, "remoteDomain"),
-			"remote_host_name":    GetStr(a, "remoteHostName"),
-			"remote_ip":           remoteIP,
-			"source_ip":           sourceIP,
-			"source_host_name":    GetStr(a, "sourceHostName"),
-			"destination_ip":      GetStr(a, "destinationIP"),
-			"destination_host":    GetStr(a, "destinationHostName"),
-			"local_ip":            GetStr(a, "localIP"),
-			"direction":           direction,
-			"logon_type":          loginType,
-			"logon_process":       GetStr(a, "logonProcess"),
-			"login_status":        loginStatus,
-			"failure_reasons":     GetStr(a, "failureReasons"),
+			"user_id":          userID,
+			"user_domain":      userDomain,
+			"user_sid":         GetStr(a, "userSID"),
+			"remote_user":      GetStr(a, "remoteUser"),
+			"remote_domain":    GetStr(a, "remoteDomain"),
+			"remote_host_name": GetStr(a, "remoteHostName"),
+			"remote_ip":        remoteIP,
+			"source_ip":        sourceIP,
+			"source_host_name": GetStr(a, "sourceHostName"),
+			"destination_ip":   GetStr(a, "destinationIP"),
+			"destination_host": GetStr(a, "destinationHostName"),
+			"local_ip":         GetStr(a, "localIP"),
+			"direction":        direction,
+			"logon_type":       loginType,
+			"logon_process":    GetStr(a, "logonProcess"),
+			"login_status":     loginStatus,
+			"failure_reasons":  GetStr(a, "failureReasons"),
 		})
 }
 
@@ -1105,14 +1105,14 @@ func (c *Converter) ConvertTriggeredTask(a Artifact) bool {
 	return c.AddEventFromArtifact(a, ts, tsDesc, msg, "triggered_task",
 		"CT-CollectionTool", "CyberTriage CollectionTool - Scheduled Tasks",
 		"windows:tasks:job", map[string]interface{}{
-			"task_name":    name,
-			"task_state":   state,
-			"description":  GetStr(a, "description"),
-			"triggers":     GetStr(a, "triggers"),
-			"actions":      actionsStr,
-			"user_id":      userID,
-			"user_domain":  GetStr(a, "userDomain"),
-			"user_sid":     GetStr(a, "userSID"),
+			"task_name":   name,
+			"task_state":  state,
+			"description": GetStr(a, "description"),
+			"triggers":    GetStr(a, "triggers"),
+			"actions":     actionsStr,
+			"user_id":     userID,
+			"user_domain": GetStr(a, "userDomain"),
+			"user_sid":    GetStr(a, "userSID"),
 		})
 }
 
@@ -1213,10 +1213,10 @@ func (c *Converter) ConvertAttachedDevice(a Artifact) int {
 		if c.AddEventFromArtifact(a, ts, e.desc, msg, "attached_device",
 			"CT-CollectionTool", "CyberTriage CollectionTool - Attached Devices",
 			"windows:registry:usbstor", map[string]interface{}{
-				"bus_type":    busType,
-				"vendor_id":   vendorId,
-				"product_id":  productId,
-				"serial_num":  serialNum,
+				"bus_type":   busType,
+				"vendor_id":  vendorId,
+				"product_id": productId,
+				"serial_num": serialNum,
 			}) {
 			added++
 		}
@@ -1245,13 +1245,13 @@ func (c *Converter) ConvertLogLine(a Artifact) bool {
 	}
 
 	attrs := map[string]interface{}{
-		"log_name":   logName,
-		"log_path":   GetStr(a, "logPath"),
-		"event_id":   fmt.Sprintf("%d", eventID),
-		"record_id":  a["recordID"],
-		"user_id":    userID,
+		"log_name":    logName,
+		"log_path":    GetStr(a, "logPath"),
+		"event_id":    fmt.Sprintf("%d", eventID),
+		"record_id":   a["recordID"],
+		"user_id":     userID,
 		"user_domain": GetStr(a, "userDomain"),
-		"user_sid":   GetStr(a, "userSID"),
+		"user_sid":    GetStr(a, "userSID"),
 	}
 	if payload != nil {
 		for k, v := range payload {

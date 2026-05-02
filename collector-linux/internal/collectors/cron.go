@@ -10,8 +10,10 @@ import (
 
 type CronCollector struct{}
 
-func (c *CronCollector) Name() string        { return "Cron" }
-func (c *CronCollector) Description() string { return "/etc/cron*, /var/spool/cron/, anacron, at jobs, systemd timers" }
+func (c *CronCollector) Name() string { return "Cron" }
+func (c *CronCollector) Description() string {
+	return "/etc/cron*, /var/spool/cron/, anacron, at jobs, systemd timers"
+}
 
 func (c *CronCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

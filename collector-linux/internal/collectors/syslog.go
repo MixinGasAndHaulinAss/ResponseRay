@@ -12,8 +12,10 @@ import (
 // SystemLogCollector grabs /var/log non-binary log trees plus journald exports.
 type SystemLogCollector struct{}
 
-func (c *SystemLogCollector) Name() string        { return "SystemLogs" }
-func (c *SystemLogCollector) Description() string { return "Generic /var/log files (syslog, messages, dmesg, kern, dpkg, yum, etc.) and journald" }
+func (c *SystemLogCollector) Name() string { return "SystemLogs" }
+func (c *SystemLogCollector) Description() string {
+	return "Generic /var/log files (syslog, messages, dmesg, kern, dpkg, yum, etc.) and journald"
+}
 
 func (c *SystemLogCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

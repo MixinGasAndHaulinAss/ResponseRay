@@ -11,8 +11,10 @@ import (
 
 type BrowserCollector struct{}
 
-func (c *BrowserCollector) Name() string        { return "Browser" }
-func (c *BrowserCollector) Description() string { return "Per-user Firefox/Chrome/Chromium/Brave/Vivaldi browser artifacts" }
+func (c *BrowserCollector) Name() string { return "Browser" }
+func (c *BrowserCollector) Description() string {
+	return "Per-user Firefox/Chrome/Chromium/Brave/Vivaldi browser artifacts"
+}
 
 func (c *BrowserCollector) Collect(ctx *fsutil.Context) Result {
 	start := time.Now()

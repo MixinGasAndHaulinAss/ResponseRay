@@ -113,4 +113,3 @@ func (idx *Index) GetFileCount(filenamePattern string) int {
 	}
 	return count
 }
-

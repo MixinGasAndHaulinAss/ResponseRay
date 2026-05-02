@@ -1056,10 +1056,10 @@ func processESXiMultipathing(em *core.Emitter, dirPath, ts string) int {
 		if em.AddEvent(ts, "Collection Time (Multipath Device)", msg, "esxi_multipath",
 			"RR-ESXi", "ResponseRay ESXi Collector - Multipathing",
 			"esxi:storage:multipath", map[string]interface{}{
-				"device":              device,
-				"path_policy":         pathPolicy,
-				"storage_array_type":  storageArray,
-				"raw":                 row,
+				"device":             device,
+				"path_policy":        pathPolicy,
+				"storage_array_type": storageArray,
+				"raw":                row,
 			}) {
 			added++
 		}
@@ -1109,10 +1109,10 @@ func processESXiSCSI(em *core.Emitter, dirPath, ts string) int {
 		if em.AddEvent(ts, "Collection Time (SCSI FC Adapter)", msg, "esxi_scsi",
 			"RR-ESXi", "ResponseRay ESXi Collector - SCSI",
 			"esxi:storage:scsi_adapter", map[string]interface{}{
-				"adapter":   adapter,
-				"wwnn":      wwnn,
-				"wwpn":      wwpn,
-				"raw":       row,
+				"adapter": adapter,
+				"wwnn":    wwnn,
+				"wwpn":    wwpn,
+				"raw":     row,
 			}) {
 			added++
 		}
