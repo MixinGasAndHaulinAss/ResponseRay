@@ -71,7 +71,9 @@ variables:
   GO_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.25"
   GO_IMAGE_CTT: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.26-bookworm"
   NODE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/node:20-alpine"
-  ALPINE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/alpine:3.19"
+  # Bumped 3.19 -> 3.21: alpine 3.19 is EOL upstream, and 3.19's musl
+  # has CVE-2026-40200 (stack-based RCE) flagged by trivy image scan.
+  ALPINE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/alpine:3.21"
   SHELLCHECK_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/koalaman/shellcheck-alpine:stable"
   DOCKER_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/docker:27-cli"
   DOCKER_DIND_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/docker:27-dind"
