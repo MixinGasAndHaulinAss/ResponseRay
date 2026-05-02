@@ -232,6 +232,11 @@ lint:collector-linux:
 lint:collector-macos:
   stage: lint
   image: "$GO_IMAGE"
+  variables:
+    # Several collectors (filesystem.go, memory.go, ...) are gated by
+    # //go:build darwin. Vet under GOOS=darwin so those files participate.
+    GOOS: darwin
+    CGO_ENABLED: "0"
   script:
     - cd collector-macos
     - go vet ./...
@@ -250,7 +255,10 @@ lint:frontend:
   image: "$NODE_IMAGE"
   script:
     - cd frontend
-    - npm ci --no-audit --no-fund
+    # Prefer reproducible `npm ci` when a lockfile is present; fall back to
+    # `npm install` until frontend/package-lock.json is committed.
+    # TODO: commit frontend/package-lock.json and switch this back to npm ci.
+    - if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
     - npx tsc --noEmit
   rules: !reference [.rules-frontend]
 
@@ -367,7 +375,7 @@ security:npm-audit:
     GIT_DEPTH: "1"
   script:
     - cd frontend
-    - npm ci --no-audit --no-fund
+    - if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
     - npm audit --audit-level=high --omit=dev
   rules: !reference [.rules-always]
 
@@ -410,7 +418,7 @@ test:frontend:
   image: "$NODE_IMAGE"
   script:
     - cd frontend
-    - npm ci --no-audit --no-fund
+    - if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
     - npm run build
   artifacts:
     paths: ["frontend/dist/"]
