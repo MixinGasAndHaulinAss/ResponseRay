@@ -152,6 +152,7 @@ default:
   image: "$DOCKER_IMAGE"
   services:
     - name: "$DOCKER_DIND_IMAGE"
+      alias: docker
       command: ["--tls=false"]
   variables:
     GIT_DEPTH: "1"
