@@ -1,34 +1,48 @@
 # =====================================================================
 # ResponseRay CI/CD pipeline
 # =====================================================================
+# Conventions follow the StrikeTeam/ResponseRay org pattern documented in
+# the scanray-console-deployment skill:
+#
+# - Runners: instance-shared, NEVER untagged. We tag every job with
+#   `linuxrunner` (default) or `windowsrunner` / `macrunner` where
+#   needed. Available runner tags:
+#     linuxrunner1/2  : linux, linuxrunner, docker, amd64
+#     windowsrunner   : windows, windowsrunner, signing
+#     macrunner       : macos, arm64, shell
+#
+# - Image pulls: route through the StrikeTeam group's GitLab Dependency
+#   Proxy via ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX} so we don't hit
+#   Docker Hub rate limits and pulls are LAN-cached.
+#
+# - Tag conventions on container images (see promote:retag-unchanged):
+#     :$CI_COMMIT_SHORT_SHA  every pipeline
+#     :latest                master only
+#     :$CI_COMMIT_TAG        tag pipelines only
+#
+# - GitHub mirror: tail job pushes to MixinGasAndHaulinAss/ResponseRay
+#   using the GITHUB_MIRROR_TOKEN CI/CD variable (masked).
+#
+# - Deploy: NOT in this pipeline. Tendril owns deploys to dev — the
+#   operator triggers `update ResponseRay on dev`, Tendril runs
+#   `docker compose pull && up -d` against the registry images. See
+#   the responseray-deployment skill for the operator runbook.
+#
 # Stages
 #   lint      Static analysis per component (Go vet/gofmt, tsc, shellcheck)
-#   test      go test, frontend type-check + build
-#   build     Standalone collector binaries (artifacts), per-component
-#   container Docker images for the API stack and the web bundler,
-#             pushed to the project's GitLab Container Registry.
-#             Includes a `promote:retag-unchanged` job that re-tags any
-#             image not built this pipeline so the whole stack always
-#             pins to a single commit SHA.
-#   release   On `v*` tags: zip up the collector binaries and create a
-#             GitLab Release with the artifacts attached.
-#   mirror    On master + tag pipelines: push a full mirror to the
-#             GitHub origin (MixinGasAndHaulinAss/ResponseRay).
+#   test      go test, frontend tsc + build
+#   build     Per-component collector binaries as downloadable artifacts
+#   container Build & push API + web images to GitLab Container Registry,
+#             then re-tag any unchanged image so :<sha> is uniform.
+#   release   Tag pipelines: zip collector binaries, attach to a Release
+#   mirror    Push GitLab repo state to GitHub
 #
-# Deploy is intentionally NOT in this pipeline. Deploys to `dev` are
-# operator-driven through Tendril (see responseray-deployment skill).
-#
-# Per-component change detection
-# ------------------------------
-# Each job declares a `changes:` rule scoped to its source path so that
-# pushes touching only one component don't rebuild everything. Tag
-# pipelines (v*) always run every job for a complete release.
-#
-# Required CI/CD variables
-# ------------------------
-#   GITHUB_USERNAME   GitHub user that owns the mirror token
-#   GITHUB_TOKEN      Fine-grained GitHub PAT with `contents:write`
-#                     on MixinGasAndHaulinAss/ResponseRay (masked)
+# Required project CI/CD variables
+#   GITHUB_MIRROR_TOKEN   GitHub fine-grained PAT with contents:write
+#                         on MixinGasAndHaulinAss/ResponseRay (masked)
+#   DOCKERHUB_USER        Docker Hub user (used to authenticate in case
+#                         the dep proxy misses; non-secret, env_var)
+#   DOCKERHUB_TOKEN       Docker Hub PAT (masked)
 # =====================================================================
 
 stages:
@@ -40,13 +54,17 @@ stages:
   - mirror
 
 variables:
-  GO_VERSION: "1.22"
-  GO_VERSION_CTT: "1.26"
-  NODE_VERSION: "20"
-  DOTNET_SDK: "8.0"
+  GO_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.22"
+  GO_IMAGE_CTT: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/golang:1.26-bookworm"
+  NODE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/node:20-alpine"
+  ALPINE_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/alpine:3.19"
+  SHELLCHECK_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/koalaman/shellcheck-alpine:stable"
+  DOCKER_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/docker:27-cli"
+  DOCKER_DIND_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/docker:27-dind"
+  DOTNET_IMAGE: "mcr.microsoft.com/dotnet/sdk:8.0"
+  CRANE_IMAGE: "gcr.io/go-containerregistry/crane:debug"
   REGISTRY: "$CI_REGISTRY_IMAGE"
   IMAGE_TAG_SHA: "$CI_COMMIT_SHORT_SHA"
-  IMAGE_TAG_REF: "$CI_COMMIT_REF_SLUG"
   DOCKER_HOST: "tcp://docker:2375"
   DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
@@ -57,6 +75,7 @@ variables:
   FF_TIMESTAMPS: "true"
 
 default:
+  tags: [linuxrunner]
   interruptible: true
   retry:
     max: 1
@@ -66,11 +85,7 @@ default:
       - scheduler_failure
 
 # ---------------------------------------------------------------------
-# Reusable rules: one snippet per component. Referenced via !reference.
-# Each snippet runs the job when:
-#   - the component's source changes on a branch push, OR
-#   - the component's source changes in an MR, OR
-#   - the pipeline is for a v* tag (full release rebuild).
+# Reusable rules per component (referenced via !reference)
 # ---------------------------------------------------------------------
 
 .rules-backend:
@@ -122,7 +137,6 @@ default:
     changes: ["frontend/**/*"]
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
-# Master/tag-only rules used by container, release, mirror stages.
 .rules-master-or-tag:
   - if: '$CI_COMMIT_BRANCH == "master"'
   - if: '$CI_COMMIT_TAG =~ /^v/'
@@ -131,20 +145,26 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 # ---------------------------------------------------------------------
-# Hidden base job for Docker-in-Docker stages (container builds).
-# If the runner does not support DinD, swap this to use kaniko.
+# Hidden base for Docker-in-Docker stages (container builds).
 # ---------------------------------------------------------------------
 
 .docker-job:
-  image: docker:27-cli
+  image: "$DOCKER_IMAGE"
   services:
-    - name: docker:27-dind
+    - name: "$DOCKER_DIND_IMAGE"
       command: ["--tls=false"]
   variables:
     GIT_DEPTH: "1"
   before_script:
     - docker info >/dev/null
+    # Authenticate to GitLab Container Registry
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    # Authenticate to Docker Hub if creds are present (avoids 429s when
+    # FROM lines inside Dockerfiles bypass the dep proxy)
+    - |
+      if [ -n "$DOCKERHUB_USER" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin docker.io
+      fi
 
 # =====================================================================
 # LINT
@@ -152,7 +172,7 @@ default:
 
 lint:backend:
   stage: lint
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd backend
     - go vet ./...
@@ -161,9 +181,9 @@ lint:backend:
 
 lint:ct-to-timesketch:
   stage: lint
-  image: "golang:$GO_VERSION_CTT-bookworm"
+  image: "$GO_IMAGE_CTT"
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev
+    - apt-get update -q && apt-get install -y -q gcc libc6-dev
   script:
     - cd ct-to-timesketch
     - CGO_ENABLED=1 go vet ./...
@@ -172,7 +192,7 @@ lint:ct-to-timesketch:
 
 lint:collector-linux:
   stage: lint
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd collector-linux
     - go vet ./...
@@ -181,7 +201,7 @@ lint:collector-linux:
 
 lint:collector-macos:
   stage: lint
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd collector-macos
     - go vet ./...
@@ -190,14 +210,14 @@ lint:collector-macos:
 
 lint:collector-esxi:
   stage: lint
-  image: koalaman/shellcheck-alpine:stable
+  image: "$SHELLCHECK_IMAGE"
   script:
     - shellcheck -S warning collector-esxi/responseray-collector-esxi.sh
   rules: !reference [.rules-collector-esxi]
 
 lint:frontend:
   stage: lint
-  image: "node:$NODE_VERSION-alpine"
+  image: "$NODE_IMAGE"
   script:
     - cd frontend
     - npm ci --no-audit --no-fund
@@ -210,37 +230,37 @@ lint:frontend:
 
 test:backend:
   stage: test
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd backend && go test ./...
   rules: !reference [.rules-backend]
 
 test:ct-to-timesketch:
   stage: test
-  image: "golang:$GO_VERSION_CTT-bookworm"
+  image: "$GO_IMAGE_CTT"
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev
+    - apt-get update -q && apt-get install -y -q gcc libc6-dev
   script:
     - cd ct-to-timesketch && CGO_ENABLED=1 go test ./...
   rules: !reference [.rules-ctt]
 
 test:collector-linux:
   stage: test
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd collector-linux && go test ./...
   rules: !reference [.rules-collector-linux]
 
 test:collector-macos:
   stage: test
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - cd collector-macos && go test ./...
   rules: !reference [.rules-collector-macos]
 
 test:frontend:
   stage: test
-  image: "node:$NODE_VERSION-alpine"
+  image: "$NODE_IMAGE"
   script:
     - cd frontend
     - npm ci --no-audit --no-fund
@@ -257,7 +277,7 @@ test:frontend:
 
 build:collector-linux:
   stage: build
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - mkdir -p dist/linux
     - cd collector-linux
@@ -272,7 +292,7 @@ build:collector-linux:
 
 build:collector-macos:
   stage: build
-  image: "golang:$GO_VERSION"
+  image: "$GO_IMAGE"
   script:
     - mkdir -p dist/macos
     - cd collector-macos
@@ -287,7 +307,7 @@ build:collector-macos:
 
 build:collector-windows:
   stage: build
-  image: "mcr.microsoft.com/dotnet/sdk:$DOTNET_SDK"
+  image: "$DOTNET_IMAGE"
   script:
     - mkdir -p dist/windows
     - cd collector/src/ResponseRayCollector
@@ -302,7 +322,7 @@ build:collector-windows:
 
 build:collector-esxi:
   stage: build
-  image: alpine:3.19
+  image: "$ALPINE_IMAGE"
   script:
     - mkdir -p dist/esxi
     - cp collector-esxi/responseray-collector-esxi.sh dist/esxi/
@@ -317,24 +337,25 @@ build:collector-esxi:
 # =====================================================================
 # CONTAINER (build & push to GitLab Container Registry)
 # =====================================================================
-# Two images: $REGISTRY/api and $REGISTRY/web. Each tagged :<sha> + :<ref>.
-# After both build jobs evaluate their rules, `promote:retag-unchanged`
-# ensures every image carries the current short SHA tag, so a deploy
-# always pins the whole stack to one commit.
 
 container:api:
   stage: container
   extends: .docker-job
   script:
     - docker buildx create --use --name rrbuild >/dev/null 2>&1 || true
-    - docker buildx build --pull --load
+    - |
+      EXTRA_TAGS="--tag $REGISTRY/api:$IMAGE_TAG_SHA"
+      if [ "$CI_COMMIT_BRANCH" = "master" ]; then
+        EXTRA_TAGS="$EXTRA_TAGS --tag $REGISTRY/api:latest"
+      fi
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        EXTRA_TAGS="$EXTRA_TAGS --tag $REGISTRY/api:$CI_COMMIT_TAG"
+      fi
+    - docker buildx build --pull --push
         --cache-from "type=registry,ref=$REGISTRY/api:buildcache"
         --cache-to   "type=registry,ref=$REGISTRY/api:buildcache,mode=max"
-        --tag "$REGISTRY/api:$IMAGE_TAG_SHA"
-        --tag "$REGISTRY/api:$IMAGE_TAG_REF"
+        $EXTRA_TAGS
         -f Dockerfile.api .
-    - docker push "$REGISTRY/api:$IMAGE_TAG_SHA"
-    - docker push "$REGISTRY/api:$IMAGE_TAG_REF"
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       changes:
@@ -345,6 +366,7 @@ container:api:
         - collector/**/*
         - collector-esxi/**/*
         - Dockerfile.api
+        - .gitlab-ci.yml
     - if: '$CI_COMMIT_TAG =~ /^v/'
 
 container:web:
@@ -352,26 +374,32 @@ container:web:
   extends: .docker-job
   script:
     - docker buildx create --use --name rrbuild >/dev/null 2>&1 || true
-    - docker buildx build --pull --load
+    - |
+      EXTRA_TAGS="--tag $REGISTRY/web:$IMAGE_TAG_SHA"
+      if [ "$CI_COMMIT_BRANCH" = "master" ]; then
+        EXTRA_TAGS="$EXTRA_TAGS --tag $REGISTRY/web:latest"
+      fi
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        EXTRA_TAGS="$EXTRA_TAGS --tag $REGISTRY/web:$CI_COMMIT_TAG"
+      fi
+    - docker buildx build --pull --push
         --cache-from "type=registry,ref=$REGISTRY/web:buildcache"
         --cache-to   "type=registry,ref=$REGISTRY/web:buildcache,mode=max"
-        --tag "$REGISTRY/web:$IMAGE_TAG_SHA"
-        --tag "$REGISTRY/web:$IMAGE_TAG_REF"
+        $EXTRA_TAGS
         -f Dockerfile.web .
-    - docker push "$REGISTRY/web:$IMAGE_TAG_SHA"
-    - docker push "$REGISTRY/web:$IMAGE_TAG_REF"
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       changes:
         - frontend/**/*
         - Dockerfile.web
+        - .gitlab-ci.yml
     - if: '$CI_COMMIT_TAG =~ /^v/'
 
-# Re-tag any image whose component did NOT change this pipeline so the
-# :<sha> tag is uniform across the whole stack. Uses `crane` (no daemon).
+# Re-tag any image whose component did NOT change so the :<sha> tag is
+# uniform across the whole stack. Uses crane (no daemon).
 promote:retag-unchanged:
   stage: container
-  image: gcr.io/go-containerregistry/crane:debug
+  image: "$CRANE_IMAGE"
   needs:
     - job: container:api
       optional: true
@@ -385,12 +413,12 @@ promote:retag-unchanged:
     - |
       for img in api web; do
         if crane manifest "$REGISTRY/$img:$IMAGE_TAG_SHA" >/dev/null 2>&1; then
-          echo "OK: $img:$IMAGE_TAG_SHA already pushed by container stage"
-        elif crane manifest "$REGISTRY/$img:$IMAGE_TAG_REF" >/dev/null 2>&1; then
-          echo "Promoting $img:$IMAGE_TAG_REF -> $img:$IMAGE_TAG_SHA"
-          crane tag "$REGISTRY/$img:$IMAGE_TAG_REF" "$IMAGE_TAG_SHA"
+          echo "OK: $img:$IMAGE_TAG_SHA already pushed"
+        elif crane manifest "$REGISTRY/$img:latest" >/dev/null 2>&1; then
+          echo "Promoting $img:latest -> $img:$IMAGE_TAG_SHA"
+          crane tag "$REGISTRY/$img:latest" "$IMAGE_TAG_SHA"
         else
-          echo "WARN: no $img image yet on $IMAGE_TAG_REF; skipping promote"
+          echo "WARN: no $img image yet; nothing to promote"
         fi
       done
   rules: !reference [.rules-master-or-tag]
@@ -401,7 +429,7 @@ promote:retag-unchanged:
 
 release:bundle-collectors:
   stage: release
-  image: alpine:3.19
+  image: "$ALPINE_IMAGE"
   needs:
     - job: build:collector-linux
       optional: true
@@ -448,17 +476,16 @@ release:gitlab-release:
 
 mirror:github:
   stage: mirror
-  image: alpine:3.19
+  image: "$ALPINE_IMAGE"
   variables:
     GIT_STRATEGY: none
   before_script:
     - apk add --no-cache git openssh-client
-    - test -n "$GITHUB_USERNAME" || { echo "GITHUB_USERNAME not set"; exit 1; }
-    - test -n "$GITHUB_TOKEN"    || { echo "GITHUB_TOKEN not set"; exit 1; }
+    - test -n "$GITHUB_MIRROR_TOKEN" || { echo "GITHUB_MIRROR_TOKEN not set"; exit 1; }
     - git config --global user.email "ci@gitlab.nclgisa.org"
     - git config --global user.name  "GitLab CI"
   script:
     - git clone --mirror "$CI_REPOSITORY_URL" mirror.git
     - cd mirror.git
-    - git push --mirror "https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/MixinGasAndHaulinAss/ResponseRay.git"
+    - git push --mirror "https://oauth2:${GITHUB_MIRROR_TOKEN}@github.com/MixinGasAndHaulinAss/ResponseRay.git"
   rules: !reference [.rules-master-or-tag]

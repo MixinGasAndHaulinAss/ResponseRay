@@ -1,25 +1,33 @@
 # =====================================================================
 # Registry overlay for production-style deploys.
 #
-# This overlay pulls the API and web images from the GitLab Container
-# Registry instead of building them locally. Used by Tendril-driven
-# deploys to `dev` so the operator only ever has to do:
+# This overlay pulls the API and web-bundler images from the GitLab
+# Container Registry instead of building them locally. Used by the
+# Tendril-driven update flow on `dev` so the operator's update is just
+# a registry pull + `up -d`.
+#
+# Usage on dev (the responseray-deployment skill automates this):
 #
 #   cd /opt/responseray
-#   docker compose -f docker-compose.yml -f docker-compose.registry.yml pull
-#   docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
+#   IMAGE_TAG=<short-sha-or-tag> docker compose \
+#       -f docker-compose.yml -f docker-compose.registry.yml pull
+#   IMAGE_TAG=<short-sha-or-tag> docker compose \
+#       -f docker-compose.yml -f docker-compose.registry.yml up -d
 #
-# Required env vars (set in /opt/responseray/.env on dev):
-#   RESPONSERAY_API_IMAGE  e.g. glcr.nclgisa.org:443/striketeam/responseray/api:f99f2c8
-#   RESPONSERAY_WEB_IMAGE  e.g. glcr.nclgisa.org:443/striketeam/responseray/web:f99f2c8
+# Persist a pin in /opt/responseray/.env:
+#   IMAGE_TAG=2026.5.1.1     # CalVer release tag
+# Or:
+#   IMAGE_TAG=af54c75        # commit short-sha
+# Or:
+#   IMAGE_TAG=latest         # always rolling-latest on master
 #
-# Tags should be set to the same git short-SHA so the whole stack pins
-# to a single commit. The CI pipeline guarantees a uniform :<sha> tag
-# across all images via the promote:retag-unchanged job.
+# The CI pipeline (.gitlab-ci.yml) guarantees that every commit on master
+# publishes BOTH :<short-sha> and :latest tags, so any of those works.
+# `promote:retag-unchanged` ensures unchanged components are re-tagged
+# to the current short-sha so the whole stack pins to one commit.
 #
-# `pull_policy: always` ensures `docker compose up -d` re-pulls the
-# image instead of falling back to the local `build:` directive
-# inherited from docker-compose.yml.
+# `pull_policy: always` ensures `up -d` re-pulls the image instead of
+# falling back to the local `build:` directive in docker-compose.yml.
 #
 # For local development, omit this overlay; docker-compose.yml's
 # `build:` directives still work as before.
@@ -27,9 +35,9 @@
 
 services:
   api:
-    image: "${RESPONSERAY_API_IMAGE:-glcr.nclgisa.org:443/striketeam/responseray/api:master}"
+    image: "glcr.nclgisa.org:443/striketeam/responseray/api:${IMAGE_TAG:-latest}"
     pull_policy: always
 
   frontend-build:
-    image: "${RESPONSERAY_WEB_IMAGE:-glcr.nclgisa.org:443/striketeam/responseray/web:master}"
+    image: "glcr.nclgisa.org:443/striketeam/responseray/web:${IMAGE_TAG:-latest}"
     pull_policy: always
