@@ -83,7 +83,9 @@ func (PersistenceCollector) Run(ctx *fsutil.Context) error {
 		"kext",
 	)
 	ctx.CaptureGlob("/Library/SystemExtensions",
-		func(path string, info fs.FileInfo) bool { return strings.HasSuffix(path, ".plist") && info.Size() < 1*1024*1024 },
+		func(path string, info fs.FileInfo) bool {
+			return strings.HasSuffix(path, ".plist") && info.Size() < 1*1024*1024
+		},
 		func(path string) string {
 			rel, _ := filepath.Rel("/", path)
 			return filepath.Join("artifacts/persistence", rel)

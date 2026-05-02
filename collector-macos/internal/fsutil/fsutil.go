@@ -17,12 +17,12 @@ import (
 const MaxSingleFileBytes = 500 * 1024 * 1024
 
 type Context struct {
-	OutputDir   string
-	Hostname    string
-	IncludeMem  bool
-	mu          sync.Mutex
-	files       []manifest.FileEntry
-	totalBytes  int64
+	OutputDir  string
+	Hostname   string
+	IncludeMem bool
+	mu         sync.Mutex
+	files      []manifest.FileEntry
+	totalBytes int64
 }
 
 func NewContext(outputDir, hostname string, includeMem bool) *Context {
