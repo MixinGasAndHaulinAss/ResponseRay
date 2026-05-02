@@ -429,8 +429,17 @@ test:collector-linux:
 test:collector-macos:
   stage: test
   image: "$GO_IMAGE"
+  variables:
+    # collector-macos has //go:build darwin files. Linux runners cannot
+    # execute the resulting binaries, so we cross-compile-and-vet under
+    # GOOS=darwin as a smoke test. Real `go test` runs should be routed
+    # to macrunner once we wire that in.
+    GOOS: darwin
+    CGO_ENABLED: "0"
   script:
-    - cd collector-macos && go test ./...
+    - cd collector-macos
+    - go vet ./...
+    - go build ./...
   rules: !reference [.rules-collector-macos]
 
 test:frontend:
