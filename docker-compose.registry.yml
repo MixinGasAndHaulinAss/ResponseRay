@@ -1,0 +1,35 @@
+# =====================================================================
+# Registry overlay for production-style deploys.
+#
+# This overlay pulls the API and web images from the GitLab Container
+# Registry instead of building them locally. Used by Tendril-driven
+# deploys to `dev` so the operator only ever has to do:
+#
+#   cd /opt/responseray
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
+#
+# Required env vars (set in /opt/responseray/.env on dev):
+#   RESPONSERAY_API_IMAGE  e.g. glcr.nclgisa.org:443/striketeam/responseray/api:f99f2c8
+#   RESPONSERAY_WEB_IMAGE  e.g. glcr.nclgisa.org:443/striketeam/responseray/web:f99f2c8
+#
+# Tags should be set to the same git short-SHA so the whole stack pins
+# to a single commit. The CI pipeline guarantees a uniform :<sha> tag
+# across all images via the promote:retag-unchanged job.
+#
+# `pull_policy: always` ensures `docker compose up -d` re-pulls the
+# image instead of falling back to the local `build:` directive
+# inherited from docker-compose.yml.
+#
+# For local development, omit this overlay; docker-compose.yml's
+# `build:` directives still work as before.
+# =====================================================================
+
+services:
+  api:
+    image: "${RESPONSERAY_API_IMAGE:-glcr.nclgisa.org:443/striketeam/responseray/api:master}"
+    pull_policy: always
+
+  frontend-build:
+    image: "${RESPONSERAY_WEB_IMAGE:-glcr.nclgisa.org:443/striketeam/responseray/web:master}"
+    pull_policy: always
