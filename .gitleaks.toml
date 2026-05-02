@@ -1,0 +1,42 @@
+# Gitleaks config for ResponseRay.
+#
+# Inherits gitleaks' built-in default ruleset, then narrowly allowlists
+# repo-specific false positives. Every entry needs a justification —
+# do NOT add new allowlist rules without operator review.
+
+title = "ResponseRay gitleaks config"
+
+[extend]
+useDefault = true
+
+# Repo-wide allowlist for known-safe matches.
+[allowlist]
+description = "Global allowlist for known false positives"
+paths = [
+  # Vendored Go module checksums and lockfiles regularly contain
+  # high-entropy hashes that look like secrets to gitleaks.
+  '''(^|/)go\.sum$''',
+  '''(^|/)package-lock\.json$''',
+
+  # Frontend build outputs are reproducible static assets.
+  '''^frontend/dist/''',
+
+  # Test fixtures: synthetic, never sensitive.
+  '''/testdata/''',
+]
+
+regexes = [
+  # `.env.example` ships placeholder credentials like
+  # POSTGRES_PASSWORD=changeme_in_production — these are documentation,
+  # not real secrets.
+  '''changeme_in_production''',
+  '''dfir-replace-me''',
+  # Container registry hostname (no creds, just a URL).
+  '''glcr\.nclgisa\.org(:443)?''',
+]
+
+# Add per-rule allowlists below as findings warrant. Pattern:
+#   [[rules.allowlist]]
+#   description = "why this is OK"
+#   paths = ['''path/regex''']
+#   regexes = ['''content/regex''']

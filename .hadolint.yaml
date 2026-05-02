@@ -1,0 +1,26 @@
+# Hadolint config for ResponseRay Dockerfiles.
+#
+# Matches StrikeTeam org conventions (see scanray-console-deployment skill).
+# Each ignored rule needs a justification — don't add new ones casually.
+
+ignored:
+  # DL3008: pin apt-get versions. We get reproducibility from base-image
+  #         pinning + the dep proxy, not from per-package version pins.
+  - DL3008
+  # DL3013: pin pip versions. Not used in our Dockerfiles, but reserved
+  #         in case we add a Python-based collector or tool.
+  - DL3013
+  # DL3018: pin apk versions. Same rationale as DL3008.
+  - DL3018
+  # DL3059: multiple consecutive RUN instructions. We deliberately split
+  #         RUN steps across the multi-stage build for layer caching.
+  - DL3059
+  # DL3007: latest tag. We use latest only for transient buildx/cache
+  #         operations, not for runtime images.
+  - DL3007
+
+trustedRegistries:
+  - docker.io
+  - gitlab.nclgisa.org
+  - glcr.nclgisa.org
+  - mcr.microsoft.com

@@ -30,12 +30,22 @@
 #
 # Stages
 #   lint      Static analysis per component (Go vet/gofmt, tsc, shellcheck)
+#   security  Always-on guardrails: hadolint, gitleaks, trivy fs scan,
+#             govulncheck (per Go module), npm audit. Block on HIGH+.
 #   test      go test, frontend tsc + build
 #   build     Per-component collector binaries as downloadable artifacts
 #   container Build & push API + web images to GitLab Container Registry,
 #             then re-tag any unchanged image so :<sha> is uniform.
+#   scan      Per-image trivy CVE scan against the published GLCR images.
+#             Block on HIGH/CRITICAL.
 #   release   Tag pipelines: zip collector binaries, attach to a Release
 #   mirror    Push GitLab repo state to GitHub
+#
+# Force-full-pipeline trigger
+#   Set CI/CD variable FORCE_RUN_ALL=true on a manual pipeline (UI:
+#   "Run pipeline" -> add var) to force every per-component lint/test/build
+#   /container job to run regardless of `changes:`. Use after a base-image
+#   bump, security advisory, or for a clean baseline run.
 #
 # Required project CI/CD variables
 #   GITHUB_MIRROR_TOKEN   GitHub fine-grained PAT with contents:write
@@ -47,9 +57,11 @@
 
 stages:
   - lint
+  - security
   - test
   - build
   - container
+  - scan
   - release
   - mirror
 
@@ -63,6 +75,9 @@ variables:
   DOCKER_DIND_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/library/docker:27-dind"
   DOTNET_IMAGE: "mcr.microsoft.com/dotnet/sdk:8.0"
   CRANE_IMAGE: "gcr.io/go-containerregistry/crane:debug"
+  HADOLINT_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/hadolint/hadolint:latest-alpine"
+  GITLEAKS_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/zricethezav/gitleaks:latest"
+  TRIVY_IMAGE: "${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/aquasec/trivy:latest"
   REGISTRY: "$CI_REGISTRY_IMAGE"
   IMAGE_TAG_SHA: "$CI_COMMIT_SHORT_SHA"
   DOCKER_HOST: "tcp://docker:2375"
@@ -89,6 +104,7 @@ default:
 # ---------------------------------------------------------------------
 
 .rules-backend:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["backend/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -96,6 +112,7 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-ctt:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["ct-to-timesketch/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -103,6 +120,7 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-collector-linux:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["collector-linux/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -110,6 +128,7 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-collector-macos:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["collector-macos/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -117,6 +136,7 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-collector-windows:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["collector/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -124,6 +144,7 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-collector-esxi:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["collector-esxi/**/*"]
   - if: "$CI_COMMIT_BRANCH"
@@ -131,11 +152,19 @@ default:
   - if: '$CI_COMMIT_TAG =~ /^v/'
 
 .rules-frontend:
+  - if: '$FORCE_RUN_ALL == "true"'
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     changes: ["frontend/**/*"]
   - if: "$CI_COMMIT_BRANCH"
     changes: ["frontend/**/*"]
   - if: '$CI_COMMIT_TAG =~ /^v/'
+
+# Always-on rule: every master push, every MR, every tag, every manual run.
+# Used by the `security` stage so guardrails NEVER skip.
+.rules-always:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  - if: "$CI_COMMIT_BRANCH"
+  - if: '$CI_COMMIT_TAG'
 
 .rules-master-or-tag:
   - if: '$CI_COMMIT_BRANCH == "master"'
@@ -224,6 +253,123 @@ lint:frontend:
     - npm ci --no-audit --no-fund
     - npx tsc --noEmit
   rules: !reference [.rules-frontend]
+
+# =====================================================================
+# SECURITY (always-on guardrails; HIGH/CRITICAL findings BLOCK)
+# =====================================================================
+
+# Static-analyze every Dockerfile in the repo. Fails on errors and warnings.
+# Style codes (DL3008/DL3013/...) are tuned via .hadolint.yaml.
+security:hadolint:
+  stage: security
+  image:
+    name: "$HADOLINT_IMAGE"
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "1"
+  script:
+    - hadolint --version
+    - hadolint Dockerfile.api Dockerfile.web
+  rules: !reference [.rules-always]
+
+# Repo-wide secrets scan. Uses .gitleaks.toml at repo root for allowlists.
+# Scans the FULL git history (GIT_DEPTH=0) on master/tag pipelines so
+# a credential committed three months ago and reverted yesterday is still
+# caught. MR pipelines scan only the diff for speed.
+security:gitleaks:
+  stage: security
+  image:
+    name: "$GITLEAKS_IMAGE"
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - gitleaks version
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        gitleaks detect --source . --redact --no-banner \
+          --log-opts="--all $CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD"
+      else
+        gitleaks detect --source . --redact --no-banner
+      fi
+  rules: !reference [.rules-always]
+
+# Filesystem CVE scan: dependencies, lockfiles, OS packages in the working
+# tree (NOT the built images — that's the `scan` stage). Blocks on
+# HIGH/CRITICAL.
+security:trivy-fs:
+  stage: security
+  image:
+    name: "$TRIVY_IMAGE"
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "1"
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_CACHE_DIR: ".trivycache/"
+  cache:
+    key: trivy-db
+    paths: [".trivycache/"]
+  script:
+    - trivy --version
+    - trivy fs
+        --exit-code 1
+        --severity HIGH,CRITICAL
+        --ignore-unfixed
+        --skip-dirs node_modules
+        --skip-dirs frontend/node_modules
+        --skip-dirs collector/src/ResponseRayCollector/bin
+        --skip-dirs collector/src/ResponseRayCollector/obj
+        .
+  rules: !reference [.rules-always]
+
+# Go vulnerability check (analyzes both deps AND source — only flags CVEs
+# whose vulnerable code path is actually reachable from your binaries).
+security:govulncheck:
+  stage: security
+  image: "$GO_IMAGE"
+  variables:
+    GIT_DEPTH: "1"
+    GOFLAGS: "-mod=mod"
+  before_script:
+    - go install golang.org/x/vuln/cmd/govulncheck@latest
+    - export PATH="$(go env GOPATH)/bin:$PATH"
+  script:
+    - |
+      set -e
+      FAIL=0
+      for mod in backend collector-linux collector-macos; do
+        echo "=== govulncheck: $mod ==="
+        (cd "$mod" && govulncheck ./...) || FAIL=1
+      done
+      exit $FAIL
+  rules: !reference [.rules-always]
+
+# ct-to-timesketch is on Go 1.26 + CGO; run separately.
+security:govulncheck:ctt:
+  stage: security
+  image: "$GO_IMAGE_CTT"
+  variables:
+    GIT_DEPTH: "1"
+  before_script:
+    - apt-get update -q && apt-get install -y -q gcc libc6-dev
+    - go install golang.org/x/vuln/cmd/govulncheck@latest
+    - export PATH="$(go env GOPATH)/bin:$PATH"
+  script:
+    - cd ct-to-timesketch && CGO_ENABLED=1 govulncheck ./...
+  rules: !reference [.rules-always]
+
+# Frontend dep vulnerability scan. --audit-level=high exits non-zero on
+# HIGH/CRITICAL only (skips LOW/MODERATE noise).
+security:npm-audit:
+  stage: security
+  image: "$NODE_IMAGE"
+  variables:
+    GIT_DEPTH: "1"
+  script:
+    - cd frontend
+    - npm ci --no-audit --no-fund
+    - npm audit --audit-level=high --omit=dev
+  rules: !reference [.rules-always]
 
 # =====================================================================
 # TEST
@@ -362,6 +508,7 @@ container:api:
         docker push "$REGISTRY/api:$CI_COMMIT_TAG"
       fi
   rules:
+    - if: '$FORCE_RUN_ALL == "true"'
     - if: '$CI_COMMIT_BRANCH == "master"'
       changes:
         - backend/**/*
@@ -396,6 +543,7 @@ container:web:
         docker push "$REGISTRY/web:$CI_COMMIT_TAG"
       fi
   rules:
+    - if: '$FORCE_RUN_ALL == "true"'
     - if: '$CI_COMMIT_BRANCH == "master"'
       changes:
         - frontend/**/*
@@ -431,6 +579,45 @@ promote:retag-unchanged:
           echo "WARN: no $img image yet; nothing to promote"
         fi
       done
+  rules: !reference [.rules-master-or-tag]
+
+# =====================================================================
+# SCAN (CVE scan the published images; HIGH/CRITICAL blocks)
+# =====================================================================
+
+# Trivy scans the as-pushed api+web images at $REGISTRY/<img>:$IMAGE_TAG_SHA
+# (after promote:retag-unchanged ran, both tags are guaranteed to exist).
+# Authenticates to GLCR via TRIVY_USERNAME/TRIVY_PASSWORD.
+scan:trivy-images:
+  stage: scan
+  image:
+    name: "$TRIVY_IMAGE"
+    entrypoint: [""]
+  needs:
+    - job: promote:retag-unchanged
+  variables:
+    GIT_DEPTH: "1"
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_CACHE_DIR: ".trivycache/"
+  cache:
+    key: trivy-db
+    paths: [".trivycache/"]
+  script:
+    - trivy --version
+    - |
+      set -e
+      FAIL=0
+      for img in api web; do
+        echo "=== trivy image: $REGISTRY/$img:$IMAGE_TAG_SHA ==="
+        trivy image \
+          --exit-code 1 \
+          --severity HIGH,CRITICAL \
+          --ignore-unfixed \
+          "$REGISTRY/$img:$IMAGE_TAG_SHA" || FAIL=1
+      done
+      exit $FAIL
   rules: !reference [.rules-master-or-tag]
 
 # =====================================================================
