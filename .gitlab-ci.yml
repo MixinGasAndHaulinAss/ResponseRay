@@ -407,7 +407,9 @@ container:web:
 # uniform across the whole stack. Uses crane (no daemon).
 promote:retag-unchanged:
   stage: container
-  image: "$CRANE_IMAGE"
+  image:
+    name: "$CRANE_IMAGE"
+    entrypoint: [""]
   needs:
     - job: container:api
       optional: true
