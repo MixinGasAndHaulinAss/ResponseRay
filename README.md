@@ -139,26 +139,69 @@ ResponseRay/
 
 ## Deployment
 
-### Option 1: Docker Compose (Recommended)
+### Repositories
+
+- **Canonical source**: [`gitlab.nclgisa.org/StrikeTeam/ResponseRay`](https://gitlab.nclgisa.org/StrikeTeam/ResponseRay) (project ID 18). All pushes go here; the CI pipeline builds and publishes container images to the GitLab Container Registry (GLCR), then mirrors `master` to GitHub.
+- **Read-only mirror**: [`github.com/MixinGasAndHaulinAss/ResponseRay`](https://github.com/MixinGasAndHaulinAss/ResponseRay). Updated automatically by the `mirror:github` CI job.
+
+Container images published per pipeline:
+
+```
+glcr.nclgisa.org:443/striketeam/responseray/api:<short-sha|latest|tag>
+glcr.nclgisa.org:443/striketeam/responseray/web:<short-sha|latest|tag>
+```
+
+### Option 1: Pull-only deploy from GLCR (Recommended for production)
+
+The `dev` server runs this mode. Operators don't compile anything — GitLab CI does, and the deploy host just pulls the published images and restarts the affected services. The `docker-compose.registry.yml` overlay swaps the local `build:` directives for `image:` references against GLCR.
+
+#### 1. One-time: register a deploy token
+
+In GitLab → StrikeTeam/ResponseRay → Settings → Repository → Deploy tokens, create a token with scopes `read_repository` + `read_registry`. Save the token value (it's shown once).
+
+#### 2. One-time: clone + login
 
 ```bash
-git clone https://github.com/NCLGISA/ResponseRay.git /opt/responseray
+git clone https://<deploy-token-username>:<deploy-token>@gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
+cd /opt/responseray
+cp .env.example .env
+# Edit .env — set POSTGRES_PASSWORD, AUTH_PASSWORD, and IMAGE_TAG (use 'latest' or a specific short-sha / version tag)
+echo "<deploy-token>" | docker login glcr.nclgisa.org:443 -u <deploy-token-username> --password-stdin
+```
+
+> **Note**: the `:443` suffix matters. Docker treats `glcr.nclgisa.org` and `glcr.nclgisa.org:443` as separate registries when looking up creds.
+
+#### 3. Bring it up
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.registry.yml pull api frontend-build
+docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
+```
+
+This starts PostgreSQL, Redis, Nginx, the API server, and the one-shot `frontend-build` container that copies the prebuilt static assets into the `frontend_build` volume nginx serves. **No local compilation runs**.
+
+### Option 2: Build-from-source via Docker Compose
+
+For local development, fresh installs without a deploy token, or air-gapped environments.
+
+```bash
+git clone https://gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
 cd /opt/responseray
 cp .env.example .env
 # Edit .env — set POSTGRES_PASSWORD and AUTH_PASSWORD
 docker compose up -d
 ```
 
-This starts PostgreSQL, Redis, Nginx, the API server, and builds the frontend automatically.
+This builds `api` and `frontend-build` locally from `Dockerfile.api` / `Dockerfile.web`. Slow on first run (Go + Rust + .NET cross-compile in the api stage); subsequent rebuilds are layer-cached.
 
-### Option 2: Hybrid (Native Go + Docker Services)
+### Option 3: Hybrid (Native Go + Docker services)
 
 This runs PostgreSQL and Redis in Docker with the Go API/Worker as native binaries managed by systemd.
 
 #### 1. Clone and configure
 
 ```bash
-git clone https://github.com/NCLGISA/ResponseRay.git /opt/responseray
+git clone https://gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
 cd /opt/responseray
 cp .env.example .env
 # Edit .env — set passwords and paths
@@ -222,8 +265,33 @@ docker compose up -d nginx
 
 ### Update workflow
 
+#### For Option 1 (pull-only, GitLab CI bakes the images)
+
+Operators just tell the server to fetch the latest published images:
+
 ```bash
 # On the server:
+cd /opt/responseray
+git pull origin master
+docker compose -f docker-compose.yml -f docker-compose.registry.yml pull api frontend-build
+docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
+```
+
+`postgres` and `redis` are skipped — their images don't change between releases and they hold persistent volumes (`pgdata`, `redisdata`). Never run `docker compose down -v` or `docker volume rm` against this stack — that destroys evidence uploads, scan history, and the database.
+
+To pin a specific version (rollback or release pin), edit `IMAGE_TAG` in `.env` and re-run the same `pull` + `up -d` commands. CI publishes both `:<short-sha>` and `:<git-tag>` (e.g. `:v2026.5.1`); both work.
+
+#### For Option 2 (build-from-source via compose)
+
+```bash
+cd /opt/responseray
+git pull origin master
+docker compose up -d --build api frontend-build
+```
+
+#### For Option 3 (hybrid native)
+
+```bash
 cd /opt/responseray && git pull origin master
 cd backend && go build -o ../bin/responseray-api ./cmd/api && go build -o ../bin/responseray-worker ./cmd/worker
 cd ../ct-to-timesketch && go build -o /usr/local/bin/ct-to-timesketch ./cmd/ct-to-timesketch/
