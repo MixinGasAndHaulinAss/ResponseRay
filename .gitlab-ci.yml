@@ -361,9 +361,13 @@ security:govulncheck:
     - |
       set -e
       FAIL=0
-      for mod in backend collector-linux collector-macos; do
-        echo "=== govulncheck: $mod ==="
-        (cd "$mod" && govulncheck ./...) || FAIL=1
+      # collector-macos has //go:build darwin files (FileSystemCollector,
+      # MemoryCollector, ...) — vet under GOOS=darwin so they participate.
+      for spec in "backend:linux" "collector-linux:linux" "collector-macos:darwin"; do
+        mod="${spec%:*}"
+        target_goos="${spec#*:}"
+        echo "=== govulncheck: $mod (GOOS=$target_goos) ==="
+        (cd "$mod" && GOOS=$target_goos CGO_ENABLED=0 govulncheck ./...) || FAIL=1
       done
       exit $FAIL
   rules: !reference [.rules-always]

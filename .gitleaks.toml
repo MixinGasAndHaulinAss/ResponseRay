@@ -33,6 +33,44 @@ regexes = [
   '''dfir-replace-me''',
   # Container registry hostname (no creds, just a URL).
   '''glcr\.nclgisa\.org(:443)?''',
+  # README curl examples that show users HOW to call the API. The
+  # username/password literals are placeholders ("analyst:your_password",
+  # "X-API-Key: rrk_...") shown for documentation, not real credentials.
+  '''your_password''',
+  '''X-API-Key:\s*rrk_''',
+  '''-u\s*"analyst:your_password"''',
+]
+
+# Documentation paths frequently contain illustrative credential-looking
+# strings. Allowlist them at the path level so we don't have to chase
+# every doc snippet individually.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Allow analysis/runbook docs to show example token formats"
+paths = [
+  '''(^|/)README\.md$''',
+  '''(^|/)docs?/''',
+  '''/CLOUDRULES_ANALYSIS\.md$''',
+]
+
+[[rules]]
+id = "curl-auth-header"
+[[rules.allowlists]]
+description = "README + ApiKeys UI page show curl usage examples"
+paths = [
+  '''(^|/)README\.md$''',
+  '''(^|/)frontend/src/pages/ApiKeys\.tsx$''',
+  '''(^|/)docs?/''',
+]
+
+[[rules]]
+id = "curl-auth-user"
+[[rules.allowlists]]
+description = "README curl -u example uses placeholder credentials"
+paths = [
+  '''(^|/)README\.md$''',
+  '''(^|/)docs?/''',
 ]
 
 # Add per-rule allowlists below as findings warrant. Pattern:
