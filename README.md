@@ -34,22 +34,24 @@ The macOS path no longer truncates at the 7-day `log show` window: the `unifiedl
 
 | Component | Tech |
 |-----------|------|
-| Backend API | Go 1.22, chi router, pgx/v5 connection pool |
-| Background Worker | Go — consumes jobs from Redis queue, runs ct-to-timesketch, ingests JSONL |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Table/Query |
+| Backend API | Go 1.25, chi router, pgx/v5 connection pool |
+| Background Worker | Go 1.25 — consumes jobs from Redis; runs [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch) (Windows/CyberTriage) or native `collectoringest` (Linux/macOS/ESXi); ingests JSONL |
+| macOS unified log parse | `unifiedlog_iterator` from [mandiant/macos-UnifiedLogs](https://github.com/mandiant/macos-UnifiedLogs), built in the API image (Rust 1.90) |
+| ct-to-timesketch (in-tree) | Go 1.26 + CGO — vendored under `ct-to-timesketch/` |
+| Frontend | React 18, TypeScript, Vite, Node 20 (build), Tailwind CSS, TanStack Table/Query |
 | Database | PostgreSQL 16 with JSONB event storage, trigram indexes |
 | Job Queue | Redis 7 (Docker) — BRPOP-based job queue with real-time progress tracking |
 | Reverse Proxy | Nginx (Docker) — serves static frontend, proxies `/api/` to Go |
 | Auth | Password + API key (designed to sit behind Cloudflare Zero Trust) |
 | Windows Collector | C# .NET 8 — self-contained Windows executable with native VSS-aware artifact capture |
-| Linux Collector | Go 1.22 — single static binary (`collector-linux/`) covering syslog, journald, packages, persistence, browsers, Docker, audit, etc. |
-| macOS Collector | Go 1.22 — single static binary (`collector-macos/`) covering unified logs, ASL, launchd, TCC, KnowledgeC, FSEvents, browsers, etc. |
+| Linux Collector | Go — single static binary (`collector-linux/`) built in the API image, covering syslog, journald, packages, persistence, browsers, Docker, audit, etc. |
+| macOS Collector | Go — single static binary (`collector-macos/`) built in the API image, covering unified logs, ASL, launchd, TCC, KnowledgeC, FSEvents, browsers, etc. |
 | ESXi Collector | POSIX `sh` script (`collector-esxi/responseray-collector-esxi.sh`) using `esxcli` / `vim-cmd` / `vmkfstools` |
 
 ## Features
 
 - **Incident Management** — Create sites (incidents), upload multiple captures per site, and investigate each independently
-- **Automatic Parsing** — Uploaded captures are queued in Redis and processed by ct-to-timesketch, then ingested into PostgreSQL
+- **Automatic Parsing** — Uploaded captures are queued in Redis; the worker runs native parsers for Linux/macOS/ESXi or ct-to-timesketch for Windows/CyberTriage, then ingests JSONL into PostgreSQL
 - **Cross-Platform Captures** — Accepts Windows `.zip` archives plus Linux/macOS/ESXi `.tar.gz` archives in a single uniform manifest schema
 - **Processing Progress** — Real-time progress tracking: queue position, processing stage, event ingest progress bar, elapsed time
 - **Chunked Uploads** — Files are split into 50 MB chunks client-side to work behind Cloudflare's 100 MB limit
@@ -76,11 +78,12 @@ The macOS path no longer truncates at the 7-day `log show` window: the `unifiedl
 
 ## Prerequisites
 
-- Linux server (tested on Ubuntu 24.04)
-- Go 1.22+
-- Node.js 18+ / npm
-- Docker & Docker Compose
-- [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch) binary
+The ResponseRay **platform** runs as Docker containers only. You do not install Go, Node, or [ct-to-timesketch](https://github.com/NCLGISA/ct-to-timesketch) on the host — those are baked into the API image.
+
+- Linux host (tested on Ubuntu 24.04)
+- Docker Engine 24+ and Docker Compose v2
+- A GitLab **deploy token** with scopes `read_repository` + `read_registry` for `glcr.nclgisa.org:443/striketeam/responseray`
+- Outbound HTTPS to `glcr.nclgisa.org` and `gitlab.nclgisa.org`
 
 ## Project Structure
 
@@ -131,7 +134,8 @@ ResponseRay/
 │       ├── directory/                # Collector archive processing
 │       ├── converter/                # Event conversion
 │       └── postprocess/              # CloudRules threat detection
-├── docker-compose.yml                # PostgreSQL, Redis, Nginx, API containers
+├── docker-compose.yml                # PostgreSQL, Redis, Nginx, API, frontend-build containers
+├── docker-compose.registry.yml       # Overlay: pull API + web images from GLCR instead of local build
 ├── nginx.conf                        # Reverse proxy config
 ├── .env.example                      # Environment variable template
 └── README.md
@@ -151,15 +155,17 @@ glcr.nclgisa.org:443/striketeam/responseray/api:<short-sha|latest|tag>
 glcr.nclgisa.org:443/striketeam/responseray/web:<short-sha|latest|tag>
 ```
 
-### Option 1: Pull-only deploy from GLCR (Recommended for production)
+### Deploy from GLCR (canonical)
 
-The `dev` server runs this mode. Operators don't compile anything — GitLab CI does, and the deploy host just pulls the published images and restarts the affected services. The `docker-compose.registry.yml` overlay swaps the local `build:` directives for `image:` references against GLCR.
+Production and `dev` use this flow: GitLab CI builds and publishes images; the server only pulls images and restarts services — nothing is compiled on the host. The `docker-compose.registry.yml` overlay replaces local `build:` directives with `image:` references to GLCR.
 
 #### 1. One-time: register a deploy token
 
 In GitLab → StrikeTeam/ResponseRay → Settings → Repository → Deploy tokens, create a token with scopes `read_repository` + `read_registry`. Save the token value (it's shown once).
 
 #### 2. One-time: clone + login
+
+The clone gives you `docker-compose.yml`, `docker-compose.registry.yml`, `nginx.conf`, and `.env.example` — you do **not** build from source on the server.
 
 ```bash
 git clone https://<deploy-token-username>:<deploy-token>@gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
@@ -174,135 +180,49 @@ echo "<deploy-token>" | docker login glcr.nclgisa.org:443 -u <deploy-token-usern
 #### 3. Bring it up
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.registry.yml pull api frontend-build
+docker compose -f docker-compose.yml -f docker-compose.registry.yml pull
 docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
 ```
 
-This starts PostgreSQL, Redis, Nginx, the API server, and the one-shot `frontend-build` container that copies the prebuilt static assets into the `frontend_build` volume nginx serves. **No local compilation runs**.
+This starts PostgreSQL, Redis, Nginx, the API server (API + worker in one container), and the one-shot `frontend-build` container that copies the prebuilt static assets into the `frontend_build` volume nginx serves. **No local compilation runs**.
 
-### Option 2: Build-from-source via Docker Compose
+### Local development (optional)
 
-For local development, fresh installs without a deploy token, or air-gapped environments.
+If you have the repo and Docker but no GLCR access (or you are changing platform code), you can build images locally instead of pulling:
 
 ```bash
-git clone https://gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
-cd /opt/responseray
+cd /opt/responseray  # or your clone path
 cp .env.example .env
 # Edit .env — set POSTGRES_PASSWORD and AUTH_PASSWORD
-docker compose up -d
+docker compose up -d --build
 ```
 
-This builds `api` and `frontend-build` locally from `Dockerfile.api` / `Dockerfile.web`. Slow on first run (Go + Rust + .NET cross-compile in the api stage); subsequent rebuilds are layer-cached.
+The first build is slow (Go + Rust + .NET in `Dockerfile.api`); subsequent runs are layer-cached. **Production deploys should use the GLCR pull flow above**, not ad-hoc `docker compose build` on the server.
 
-### Option 3: Hybrid (Native Go + Docker services)
+### Operations
 
-This runs PostgreSQL and Redis in Docker with the Go API/Worker as native binaries managed by systemd.
-
-#### 1. Clone and configure
-
-```bash
-git clone https://gitlab.nclgisa.org/StrikeTeam/ResponseRay.git /opt/responseray
-cd /opt/responseray
-cp .env.example .env
-# Edit .env — set passwords and paths
-```
-
-#### 2. Start PostgreSQL and Redis
-
-```bash
-docker compose up -d postgres redis
-```
-
-#### 3. Install ct-to-timesketch
-
-```bash
-cd /opt/responseray/ct-to-timesketch
-go build -o /usr/local/bin/ct-to-timesketch ./cmd/ct-to-timesketch/
-```
-
-#### 4. Build the Go backend
-
-```bash
-cd /opt/responseray/backend
-go build -o /opt/responseray/bin/responseray-api ./cmd/api
-go build -o /opt/responseray/bin/responseray-worker ./cmd/worker
-```
-
-#### 5. Create systemd service
-
-**`/etc/systemd/system/responseray.service`**:
-
-```ini
-[Unit]
-Description=ResponseRay API + Worker
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=simple
-EnvironmentFile=/opt/responseray/.env
-ExecStart=/bin/bash -c '/opt/responseray/bin/responseray-api & /opt/responseray/bin/responseray-worker & wait'
-Restart=on-failure
-WorkingDirectory=/opt/responseray
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now responseray
-```
-
-#### 6. Build and serve the frontend
-
-```bash
-cd /opt/responseray/frontend
-npm install
-npm run build
-docker compose up -d nginx
-```
+- **Listen port**: Nginx listens on **`:8888`** (`nginx.conf`). Typically a host or Cloudflare edge proxy terminates TLS and forwards to that port — the stack does not bind 80/443 by default.
+- **Upload limits**: `client_max_body_size` is **5G** in nginx; the UI also uses **50 MB** chunked uploads so large captures clear Cloudflare’s per-request size limits.
+- **Persistent data**: Named volumes **`pgdata`**, **`redisdata`**, and **`frontend_build`** hold database, queue state, and built static assets. Never run `docker compose down -v` or `docker volume rm` against this stack — that destroys evidence uploads, scan history, and the database snapshot.
 
 ### Update workflow
 
-#### For Option 1 (pull-only, GitLab CI bakes the images)
-
-Operators just tell the server to fetch the latest published images:
-
 ```bash
-# On the server:
 cd /opt/responseray
 git pull origin master
-docker compose -f docker-compose.yml -f docker-compose.registry.yml pull api frontend-build
+docker compose -f docker-compose.yml -f docker-compose.registry.yml pull
 docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d
 ```
 
-`postgres` and `redis` are skipped — their images don't change between releases and they hold persistent volumes (`pgdata`, `redisdata`). Never run `docker compose down -v` or `docker volume rm` against this stack — that destroys evidence uploads, scan history, and the database.
+`postgres` and `redis` image layers rarely change; they use persistent volumes (`pgdata`, `redisdata`). See **Operations** for the warning against `down -v`.
 
-To pin a specific version (rollback or release pin), edit `IMAGE_TAG` in `.env` and re-run the same `pull` + `up -d` commands. CI publishes both `:<short-sha>` and `:<git-tag>` (e.g. `:v2026.5.1`); both work.
-
-#### For Option 2 (build-from-source via compose)
-
-```bash
-cd /opt/responseray
-git pull origin master
-docker compose up -d --build api frontend-build
-```
-
-#### For Option 3 (hybrid native)
-
-```bash
-cd /opt/responseray && git pull origin master
-cd backend && go build -o ../bin/responseray-api ./cmd/api && go build -o ../bin/responseray-worker ./cmd/worker
-cd ../ct-to-timesketch && go build -o /usr/local/bin/ct-to-timesketch ./cmd/ct-to-timesketch/
-cd ../frontend && npm run build
-sudo systemctl restart responseray
-```
+To pin or roll back, set `IMAGE_TAG` in `.env` (e.g. `latest`, a commit short SHA, or a tag like `v2026.5.1` published by CI) and re-run the same `pull` + `up -d` commands.
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `IMAGE_TAG` | `latest` | Used only with `docker-compose.registry.yml` — pins `api` and `frontend-build` images (`:<short-sha>`, `:latest`, or `:<git-tag>`) |
 | `POSTGRES_HOST` | `localhost` | PostgreSQL host |
 | `POSTGRES_PORT` | `5432` | PostgreSQL port |
 | `POSTGRES_DB` | `responseray` | Database name |
@@ -311,7 +231,8 @@ sudo systemctl restart responseray
 | `REDIS_ADDR` | `127.0.0.1:6379` | Redis address for job queue and progress |
 | `API_PORT` | `8080` | Go API listen port |
 | `AUTH_PASSWORD` | `changeme_in_production` | Login password |
-| `CT_BINARY_PATH` | `/usr/local/bin/ct-to-timesketch` | Path to ct-to-timesketch binary |
+| `CT_BINARY_PATH` | `/usr/local/bin/ct-to-timesketch` | Path to ct-to-timesketch in the API container; rarely overridden (binary is baked into the image) |
+| `COLLECTORS_DIR` | `/usr/share/responseray/collectors` | Directory of collector payloads served by `/api/collectors/…` |
 | `UPLOAD_DIR` | `/data/uploads` | Upload file storage |
 | `ARTIFACTS_DIR` | `/data/artifacts` | Extracted artifacts storage |
 | `REPORTS_DIR` | `/data/reports` | Parsed JSONL output storage |
@@ -382,8 +303,11 @@ with open("cmd.exe", "wb") as f:
 | `GET` | `/api/sites/{id}/` | Get site details |
 | `PUT` | `/api/sites/{id}/` | Update site |
 | `DELETE` | `/api/sites/{id}/` | Delete site and all data |
+| `GET` | `/api/sites/{id}/platforms` | Platforms represented in captures for the site |
 | `GET` | `/api/sites/{id}/uploads` | List uploads for a site |
+| `POST` | `/api/sites/{id}/uploads` | Single-shot (non-chunked) upload |
 | `POST` | `/api/sites/{id}/uploads/init` | Initialize chunked upload |
+| `GET` | `/api/sites/{id}/uploads/{uid}` | Upload status / progress |
 | `PUT` | `/api/sites/{id}/uploads/{uid}/chunks/{idx}` | Upload a chunk |
 | `POST` | `/api/sites/{id}/uploads/{uid}/complete` | Complete chunked upload |
 | `DELETE` | `/api/sites/{id}/uploads/{uid}` | Delete upload and events |
@@ -395,6 +319,8 @@ with open("cmd.exe", "wb") as f:
 | `GET` | `/api/sites/{id}/filesystem/download/{uid}` | Download captured file |
 | `GET` | `/api/sites/{id}/logons/users` | Logon user summary |
 | `GET` | `/api/sites/{id}/remote-access` | Remote access tool detection |
+| `GET` | `/api/collectors/` | List collector payloads (size, sha256, availability) |
+| `GET` | `/api/collectors/{platform}/download` | Download a collector binary / bundle |
 | `GET` | `/api/keys/` | List API keys |
 | `POST` | `/api/keys/` | Create API key |
 | `DELETE` | `/api/keys/{kid}` | Delete API key |
